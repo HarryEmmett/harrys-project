@@ -3,12 +3,12 @@ import {
   questionsResponseSchema,
   pageVisitsResponseSchema,
   likesResponseSchema,
-} from "../schemas/apiSchema";
+} from "@harrys-project/shared/apiSchema";
 import type {
   QuestionsResponse,
   PageVisitsResponse,
   LikesResponse,
-} from "../schemas/apiSchema";
+} from "@harrys-project/shared/apiSchema";
 
 const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:3000";
 

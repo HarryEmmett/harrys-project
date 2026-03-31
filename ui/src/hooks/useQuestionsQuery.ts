@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { QuestionsResponse } from "../schemas/apiSchema";
+import type { QuestionsResponse } from "@harrys-project/shared/apiSchema";
 import { fetchQuestionsData } from "../api/apiCalls";
 
 const questionsQueryKey = "questionsKey";

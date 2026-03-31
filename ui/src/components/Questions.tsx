@@ -1,4 +1,4 @@
-import type { QuestionsResponse } from "../schemas/apiSchema";
+import type { QuestionsResponse } from "@harrys-project/shared/apiSchema";
 
 type QuestionsProps = { questions: QuestionsResponse["questions"] };
 

@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchLikesData } from "../api/apiCalls";
-import type { LikesResponse } from "../schemas/apiSchema";
+import type { LikesResponse } from "@harrys-project/shared/apiSchema";
 
 const likesQueryKey = "likesKey";
 

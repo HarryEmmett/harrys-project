@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchPageVisitsData } from "../api/apiCalls";
-import type { PageVisitsResponse } from "../schemas/apiSchema";
+import type { PageVisitsResponse } from "@harrys-project/shared/apiSchema";
 
 const pageVisitsQueryKey = "pageVisitsKey";
 

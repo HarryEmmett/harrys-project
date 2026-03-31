@@ -4,7 +4,7 @@ import type {
   QuestionsResponse,
   LikesResponse,
   PageVisitsResponse,
-} from './schemas/apiSchema';
+} from '@harrys-project/shared/apiSchema';
 
 @Controller()
 export class AppController {
