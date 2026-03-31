@@ -1,7 +1,7 @@
 import { usePageVisitsQuery } from "../hooks/usePageVisitsQuery";
 import ErrorView from "../views/ErrorView";
 
-export default () => {
+const PageVisits = () => {
   const { pageVisitsQuery } = usePageVisitsQuery();
 
   const { data, isLoading, isError } = pageVisitsQuery;
@@ -17,3 +17,5 @@ export default () => {
     </>
   );
 };
+
+export default PageVisits;

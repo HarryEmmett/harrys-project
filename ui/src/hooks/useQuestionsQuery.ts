@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchMockQuestionsData } from "../api/mockApi/mockApi";
 import type { QuestionsResponse } from "../schemas/apiSchema";
+import { fetchQuestionsData } from "../api/apiCalls";
 
 const questionsQueryKey = "questionsKey";
 
@@ -8,7 +8,7 @@ export const useQuestionsQuery = () => {
   const queryClient = useQueryClient();
   const questionsQuery = useQuery<QuestionsResponse>({
     queryKey: [questionsQueryKey],
-    queryFn: () => fetchMockQuestionsData(1000, false),
+    queryFn: () => fetchQuestionsData(),
     staleTime: 5 * 60 * 1000,
   });
   const invalidateQuestionsQuery = () => {

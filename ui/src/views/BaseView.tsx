@@ -4,7 +4,7 @@ import ErrorView from "./ErrorView";
 import Likes from "../components/Likes";
 import PageVisits from "../components/PageVisits";
 
-export default () => {
+function BaseView() {
   const { questionsQuery } = useQuestionsQuery();
 
   const { data, isLoading, isError } = questionsQuery;
@@ -34,4 +34,6 @@ export default () => {
       </section>
     </>
   );
-};
+}
+
+export default BaseView;

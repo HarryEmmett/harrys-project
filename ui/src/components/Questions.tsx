@@ -1,16 +1,18 @@
-import type { ApiResponse } from "../schemas/apiSchema";
+import type { QuestionsResponse } from "../schemas/apiSchema";
 
-type QuestionsProps = { questions: ApiResponse["questions"]};
+type QuestionsProps = { questions: QuestionsResponse["questions"] };
 
-export default ({ questions }: QuestionsProps) => {
+const Questions = ({ questions }: QuestionsProps) => {
   return (
     <>
       <ul>
         {questions &&
-          questions.map((q) => {
+          questions.map((q: QuestionsResponse["questions"][number]) => {
             return <li key={q.id}>{q.content}</li>;
           })}
       </ul>
     </>
   );
 };
+
+export default Questions;

@@ -1,7 +1,7 @@
 import { useLikesQuery } from "../hooks/useLikesQuery";
 import ErrorView from "../views/ErrorView";
 
-export default () => {
+const Likes = () => {
   const { likesQuery } = useLikesQuery();
 
   const { data, isLoading, isError } = likesQuery;
@@ -17,3 +17,5 @@ export default () => {
     </>
   );
 };
+
+export default Likes;
