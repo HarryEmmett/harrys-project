@@ -8,7 +8,7 @@ import PageVisits from '../components/PageVisits';
 
 function BaseView() {
   const { questionsQuery } = useQuestionsQuery();
-  const { latestQuestion, postQuestion } = useRoom(
+  const { latestQuestion, postQuestion, usersInRoom, joinRoom } = useRoom(
     constants.ws.questions.QUESTIONS_ROOM,
   );
 
@@ -25,13 +25,15 @@ function BaseView() {
         <div className="hero"></div>
         <div>
           <h1>Questions</h1>
-          <p>{latestQuestion ?? 'No questions yet'}</p>
+          <p>{latestQuestion || 'No questions yet'}</p>
+          <p>Users in room: {usersInRoom}</p>
           <br />
           <Questions questions={questions} />
         </div>
         <button onClick={() => postQuestion('A new question!')}>
           Add Question
         </button>
+        <button onClick={joinRoom}>Join Room</button>
       </section>
 
       <section id="likes-container">
