@@ -8,10 +8,10 @@ import {
   likesResponseSchema,
   PageVisitsResponse,
   pageVisitsResponseSchema,
-} from './schemas/apiSchema';
+} from '@harrys-project/shared/apiSchema';
 
 @Injectable()
-export class AppService {
+export class QuestionsService {
   getQuestions(): QuestionsResponse {
     const fileJson = fs.readFileSync(
       path.join(process.cwd(), 'src', 'mockApiData', 'mockQuestionsData.json'),

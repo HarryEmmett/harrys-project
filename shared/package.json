@@ -4,9 +4,22 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./apiSchema": "./apiSchema.ts"
+    "./apiSchema": {
+      "types": "./dist/apiSchema.d.ts",
+      "default": "./dist/apiSchema.js"
+    },
+    "./constants": {
+      "types": "./dist/constants.d.ts",
+      "default": "./dist/constants.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsc"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "zod": "^4.3.6",
+    "typescript": "^6.0.2"
   }
 }

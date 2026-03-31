@@ -1,14 +1,16 @@
-import { useQuestionsQuery } from "../hooks/useQuestionsQuery";
-import { useRoom } from "../hooks/useRoom";
-import Questions from "../components/Questions";
-import ErrorView from "./ErrorView";
-import Likes from "../components/Likes";
-import PageVisits from "../components/PageVisits";
+import { constants } from '@harrys-project/shared/constants';
+import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
+import { useRoom } from '../hooks/useRoom';
+import Questions from '../components/Questions';
+import ErrorView from './ErrorView';
+import Likes from '../components/Likes';
+import PageVisits from '../components/PageVisits';
 
 function BaseView() {
   const { questionsQuery } = useQuestionsQuery();
-  const { latestQuestion, postQuestion } =
-    useRoom("question-room");
+  const { latestQuestion, postQuestion } = useRoom(
+    constants.ws.questions.QUESTIONS_ROOM,
+  );
 
   const { data, isLoading, isError } = questionsQuery;
 
@@ -23,11 +25,11 @@ function BaseView() {
         <div className="hero"></div>
         <div>
           <h1>Questions</h1>
-          <p>{latestQuestion ?? "No questions yet"}</p>
+          <p>{latestQuestion ?? 'No questions yet'}</p>
           <br />
           <Questions questions={questions} />
         </div>
-        <button onClick={() => postQuestion("A new question!")}>
+        <button onClick={() => postQuestion('A new question!')}>
           Add Question
         </button>
       </section>
