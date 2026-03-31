@@ -1,7 +1,7 @@
 import './App.css'
 import { appStore } from './store/appStore'
-import { BaseView } from './views/BaseView';
-import { ErrorView } from './views/ErrorView';
+import BaseView from './views/BaseView';
+import ErrorView from './views/ErrorView';
 
 function App() {
   const isValidUser = appStore((state) => state.isValidUser);

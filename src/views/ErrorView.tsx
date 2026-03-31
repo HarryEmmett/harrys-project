@@ -1,4 +1,4 @@
-export const ErrorView = () => {
+export default () => {
     return (
         <section>
             <p>Error!</p>

@@ -1,8 +1,10 @@
 import { useQuestionsQuery } from "../hooks/useQuestionsQuery";
 import Questions from "../components/Questions";
-import { ErrorView } from "./ErrorView";
+import ErrorView from "./ErrorView";
+import Likes from "../components/Likes";
+import PageVisits from "../components/PageVisits";
 
-export const BaseView = () => {
+export default () => {
   const { questionsQuery } = useQuestionsQuery();
 
   const { data, isLoading, isError } = questionsQuery;
@@ -24,16 +26,12 @@ export const BaseView = () => {
 
       <section id="likes-container">
         <div id="likes">
-          <h2>likes</h2>
-          <p>Your questions, answered</p>
+          <Likes />
         </div>
         <div id="viewers">
-          <h2>Viewers</h2>
-          <p>Join the Vite community</p>
+          <PageVisits />
         </div>
       </section>
-
-      <div className="ticks"></div>
     </>
   );
 };

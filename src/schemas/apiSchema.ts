@@ -27,7 +27,7 @@ const eventSchema = z
   })
   .strict();
 
-export const apiResponseSchema = z
+export const questionsResponseSchema = z
   .object({
     event: eventSchema,
     participants: z.array(participantSchema),
@@ -35,4 +35,18 @@ export const apiResponseSchema = z
   })
   .strict();
 
-export type ApiResponse = z.infer<typeof apiResponseSchema>;
+export const pageVisitsResponseSchema = z
+  .object({
+    pageVisits: z.number(),
+  })
+  .strict();
+
+export const likesResponseSchema = z
+  .object({
+    likes: z.number(),
+  })
+  .strict();
+
+export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
+export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
+export type LikesResponse = z.infer<typeof likesResponseSchema>;
