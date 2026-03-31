@@ -1,26 +1,24 @@
-import type { ApiResponse } from "../schemas/apiSchema";
-import { useEffect, useState } from "react";
-import { fetchMockData } from "../api/mockApi/mockApi";
+import { useQuestionsQuery } from "../hooks/useQuestionsQuery";
+import Questions from "../components/Questions";
+import { ErrorView } from "./ErrorView";
 
 export const BaseView = () => {
-  const [questions, setQuestions] = useState<ApiResponse["questions"]>();
-  useEffect(() => {
-    fetchMockData(1500, false)
-      .then((data) => setQuestions(data.questions))
-      .catch((err) => console.error(err));
-  }, []);
+  const { questionsQuery } = useQuestionsQuery();
+
+  const { data, isLoading, isError } = questionsQuery;
+
+  if (isError) return <ErrorView />;
+  if (isLoading) return <p>Loading...</p>;
+
+  const questions = data?.questions ? data.questions : [];
+
   return (
     <>
       <section id="page-content">
         <div className="hero"></div>
         <div>
           <h1>Get started</h1>
-          <ul>
-            {questions &&
-              questions.map((q) => {
-                return <li key={q.id}>{q.content}</li>;
-              })}
-          </ul>
+          <Questions questions={questions} />
         </div>
       </section>
 

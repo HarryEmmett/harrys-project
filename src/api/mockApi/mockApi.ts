@@ -2,7 +2,7 @@ import axios from "axios";
 import { apiResponseSchema } from "../../schemas/apiSchema";
 import type { ApiResponse } from "../../schemas/apiSchema";
 
-export async function fetchMockData(
+export async function fetchMockQuestionsData(
   timeout: number,
   mockError: boolean
 ): Promise<ApiResponse> {
