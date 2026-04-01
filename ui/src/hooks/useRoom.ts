@@ -12,13 +12,12 @@ export const useRoom = (roomId: string) => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const newSocket = io('http://localhost:3000');
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSocket(newSocket);
-
-    return () => {
-      newSocket.disconnect();
-    };
+    // const newSocket = io('http://localhost:3000');
+    // // eslint-disable-next-line react-hooks/set-state-in-effect
+    // setSocket(newSocket);
+    // return () => {
+    //   newSocket.disconnect();
+    // };
   }, []);
 
   useEffect(() => {

@@ -1,6 +1,8 @@
 import { Link } from '@tanstack/react-router';
+import { useOnlineCount } from '../hooks/useOnlineCount';
 
 const Header = () => {
+  const { onlineCount } = useOnlineCount();
   return (
     <header id="header">
       <Link to="/" className="[&.active]:font-bold">
@@ -20,6 +22,7 @@ const Header = () => {
       >
         Message IDs
       </Link>
+      <div>Online Users: {onlineCount}</div>
     </header>
   );
 };
