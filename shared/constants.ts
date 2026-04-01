@@ -1,8 +1,20 @@
 export const constants = {
   rest: {
-    QUESTIONS_ENDPOINT: "/questions",
-    PAGE_VISITS_ENDPOINT: "/page-visits",
-    LIKES_ENDPOINT: "/likes",
+    endpoints: {
+      QUESTIONS_ENDPOINT: "/questions",
+      PAGE_VISITS_ENDPOINT: "/page-visits",
+      LIKES_ENDPOINT: "/likes",
+    },
+    queryClientConfig: {
+      queryKeys: {
+        QUESTIONS_KEY: "questionsKey",
+        PAGE_VISITS_KEY: "pageVisitsKey",
+        LIKES_KEY: "likesKey",
+      },
+      config: {
+        STALE_TIME: 5 * 60 * 1000,
+      },
+    },
   },
   ws: {
     questions: {
