@@ -1,19 +1,20 @@
+import type { PageVisitsResponse } from '@harrys-project/shared/apiSchema';
+import { constants } from '@harrys-project/shared/constants';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { fetchPageVisitsData } from '../api/apiCalls';
-import type { PageVisitsResponse } from '@harrys-project/shared/apiSchema';
 
-const pageVisitsQueryKey = 'pageVisitsKey';
+const { queryClientConfig } = constants.rest;
 
 export const usePageVisitsQuery = () => {
   const queryClient = useQueryClient();
   const pageVisitsQuery = useQuery<PageVisitsResponse>({
-    queryKey: [pageVisitsQueryKey],
+    queryKey: [queryClientConfig.queryKeys.PAGE_VISITS_KEY],
     queryFn: fetchPageVisitsData,
-    staleTime: 5 * 60 * 1000,
+    staleTime: queryClientConfig.config.STALE_TIME,
   });
   const invalidateViewersQuery = () => {
     void queryClient.invalidateQueries({
-      queryKey: [pageVisitsQueryKey],
+      queryKey: [queryClientConfig.queryKeys.PAGE_VISITS_KEY],
     });
   };
   return { pageVisitsQuery, invalidateViewersQuery };

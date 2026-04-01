@@ -1,5 +1,5 @@
-import { useLikesQuery } from "../hooks/useLikesQuery";
-import ErrorView from "../views/ErrorView";
+import { useLikesQuery } from '../hooks/useLikesQuery';
+import ErrorView from '../views/ErrorView';
 
 const Likes = () => {
   const { likesQuery } = useLikesQuery();
@@ -10,7 +10,7 @@ const Likes = () => {
   if (isLoading) return <p>Loading...</p>;
 
   const likes = data?.likes ?? 0;
-  
+
   return (
     <>
       <h2>likes: {likes} </h2>

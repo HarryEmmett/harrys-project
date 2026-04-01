@@ -4,30 +4,31 @@ import { useRoom } from '../hooks/useRoom';
 import ErrorView from './ErrorView';
 import Likes from '../components/Likes';
 import PageVisits from '../components/PageVisits';
+import Questions from '../components/Questions';
 
 function BaseView() {
   const { questionsQuery } = useQuestionsQuery();
-  const { latestQuestion, postQuestion, joinRoom } = useRoom(
+  const { postQuestion, joinRoom, leaveRoom } = useRoom(
     constants.ws.questions.QUESTIONS_ROOM,
   );
 
-  const { isLoading, isError } = questionsQuery;
+  const { data, isLoading, isError } = questionsQuery;
 
   if (isError) return <ErrorView />;
   if (isLoading) return <p>Loading...</p>;
 
-  // const questions = data?.questions ? data.questions : [];
+  const questions = data?.questions ? data.questions : [];
 
   return (
     <>
       <section id="page-content">
         <div className="hero"></div>
-        <div>
-          <h1>Questions</h1>
-          <p>{latestQuestion || 'No questions yet'}</p>
-        </div>
         <button onClick={() => postQuestion()}>Add Question</button>
         <button onClick={joinRoom}>Join Room</button>
+        <button onClick={leaveRoom}>Leave Room</button>
+        <div>
+          <Questions questions={questions} />
+        </div>
       </section>
 
       <section id="likes-container">

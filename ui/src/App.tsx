@@ -1,5 +1,5 @@
-import './App.css'
-import { appStore } from './store/appStore'
+import './App.css';
+import { appStore } from './store/appStore';
 import BaseView from './views/BaseView';
 import ErrorView from './views/ErrorView';
 
@@ -11,7 +11,7 @@ function App() {
       {isValidUser ? <BaseView /> : <ErrorView />}
       <section id="spacer"></section>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
