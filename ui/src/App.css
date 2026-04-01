@@ -45,7 +45,7 @@
   border: 1px solid var(--border);
 }
 
-#spacer {
+.spacer {
   height: 88px;
   border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);

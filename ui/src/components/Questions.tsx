@@ -19,7 +19,7 @@ const Questions = () => {
 
   const questions = data?.questions ? data.questions : [];
   return (
-    <>
+    <div className="p-2">
       <section id="questions-content">
         <button onClick={() => postQuestion()}>Add Question</button>
         <button onClick={joinRoom}>Join Room</button>
@@ -43,7 +43,7 @@ const Questions = () => {
           </div>
         </section>
       </section>
-    </>
+    </div>
   );
 };
 

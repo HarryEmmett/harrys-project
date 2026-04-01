@@ -3,7 +3,6 @@ import {
   createRootRoute,
   createRoute,
   createRouter,
-  Link,
   Outlet,
   useParams,
 } from '@tanstack/react-router';
@@ -14,26 +13,6 @@ import Questions from './components/Questions';
 const rootRoute = createRootRoute({
   component: () => (
     <>
-      <div className="p-2 flex gap-2">
-        <Link to="/" className="[&.active]:font-bold">
-          Home
-        </Link>{' '}
-        <Link
-          to="/question/$id"
-          params={{ id: '123' }}
-          className="[&.active]:font-bold"
-        >
-          Question ID
-        </Link>
-        <Link
-          to="/message/$id"
-          params={{ id: '456' }}
-          className="[&.active]:font-bold"
-        >
-          Message IDs
-        </Link>
-      </div>
-      <hr />
       <BaseView>
         <Outlet />
       </BaseView>
@@ -48,11 +27,7 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: function Index() {
-    return (
-      <div className="p-2">
-        <Questions />
-      </div>
-    );
+    return <Questions />;
   },
 });
 
@@ -70,7 +45,9 @@ const messageRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/message/$id',
   component: function Message() {
-    return <div className="p-2">Hello from Message id page!</div>;
+    const params = useParams({ from: '/message/$id' });
+    const id = params.id;
+    return <div className="p-2">Hello from Message id page {id}!</div>;
   },
 });
 

@@ -7,11 +7,7 @@ import ErrorView from './views/ErrorView';
 function App() {
   const isValidUser = appStore((state) => state.isValidUser);
   return (
-    <>
-      <section id="spacer"></section>
-      {isValidUser ? <RouterProvider router={router} /> : <ErrorView />}
-      <section id="spacer"></section>
-    </>
+    <>{isValidUser ? <RouterProvider router={router} /> : <ErrorView />}</>
   );
 }
 
