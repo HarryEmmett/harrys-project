@@ -1,6 +1,7 @@
 import './App.css';
+import { RouterProvider } from '@tanstack/react-router';
 import { appStore } from './store/appStore';
-import BaseView from './views/BaseView';
+import { router } from './router';
 import ErrorView from './views/ErrorView';
 
 function App() {
@@ -8,7 +9,7 @@ function App() {
   return (
     <>
       <section id="spacer"></section>
-      {isValidUser ? <BaseView /> : <ErrorView />}
+      {isValidUser ? <RouterProvider router={router} /> : <ErrorView />}
       <section id="spacer"></section>
     </>
   );
