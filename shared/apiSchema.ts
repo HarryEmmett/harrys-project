@@ -7,7 +7,7 @@ const participantSchema = z
   })
   .strict();
 
-const questionSchema = z
+export const questionSchema = z
   .object({
     id: z.string(),
     userId: z.string(),
@@ -50,3 +50,4 @@ export const likesResponseSchema = z
 export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
 export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
 export type LikesResponse = z.infer<typeof likesResponseSchema>;
+export type QuestionResponse = z.infer<typeof questionSchema>;

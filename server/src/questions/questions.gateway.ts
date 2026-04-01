@@ -1,3 +1,5 @@
+import { constants } from '@harrys-project/shared/constants';
+import * as apiSchema from '@harrys-project/shared/apiSchema';
 import {
   WebSocketGateway,
   SubscribeMessage,
@@ -5,7 +7,7 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
-import { constants } from '@harrys-project/shared/constants';
+import { ZodValidationPipe } from 'nestjs-zod';
 
 @WebSocketGateway({
   cors: {
@@ -15,25 +17,13 @@ import { constants } from '@harrys-project/shared/constants';
 export class QuestionsGateway {
   @WebSocketServer()
   private server: Server | undefined;
-  private numUsers = 0;
-
-  decrementUsers() {
-    this.numUsers = Math.max(0, this.numUsers - 1);
-    return this.numUsers;
-  }
-  incrementUsers() {
-    this.numUsers++;
-    return this.numUsers;
-  }
 
   handleConnection(client: Socket) {
     console.log('Client connected:', client.id);
-    this.server?.emit('users-in-room', this.incrementUsers());
   }
 
   handleDisconnect(client: Socket) {
     console.log('Client disconnected:', client.id);
-    this.server?.emit('users-in-room', this.decrementUsers());
   }
 
   @SubscribeMessage(constants.ws.questions.QUESTIONS_ROOM)
@@ -46,25 +36,21 @@ export class QuestionsGateway {
       .emit(constants.ws.questions.QUESTIONS_ROOM, message);
   }
 
-  @SubscribeMessage('users-in-room')
-  handleUsersInRoom(client: Socket, roomId: string) {
-    const message = `Successfully joined room ${roomId}: ${this.numUsers}`;
-    console.log(message);
-    this.server?.to(roomId).emit(constants.ws.questions.QUESTIONS_ROOM, {
-      roomId,
-      numUsers: this.numUsers,
-      message,
-    });
-  }
-
   @SubscribeMessage(constants.ws.questions.QUESTIONS_EMIT_EVENT)
   handleQuestion(
-    @MessageBody() data: { questionRoomId: string; question: string },
+    @MessageBody(new ZodValidationPipe(apiSchema.questionsResponseSchema))
+    data: apiSchema.QuestionsResponse,
+    // @ConnectedSocket() client: Socket use to send back to sender only, server is broadcasting to all subscribed
   ) {
+    // how to make zod pipe log error?
     console.log('New question posted:', data);
-
+    const number = Math.floor(Math.random() * 5) - 1;
+    console.log(number);
     this.server
-      ?.to(data.questionRoomId)
-      .emit(constants.ws.questions.QUESTIONS_EMIT_EVENT, data);
+      ?.to(constants.ws.questions.QUESTIONS_ROOM)
+      .emit(
+        constants.ws.questions.QUESTIONS_EMIT_EVENT,
+        data.questions[number],
+      );
   }
 }

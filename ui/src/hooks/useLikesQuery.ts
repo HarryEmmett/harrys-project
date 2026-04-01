@@ -1,8 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchLikesData } from "../api/apiCalls";
-import type { LikesResponse } from "@harrys-project/shared/apiSchema";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchLikesData } from '../api/apiCalls';
+import type { LikesResponse } from '@harrys-project/shared/apiSchema';
 
-const likesQueryKey = "likesKey";
+const likesQueryKey = 'likesKey';
 
 export const useLikesQuery = () => {
   const queryClient = useQueryClient();
@@ -12,7 +12,7 @@ export const useLikesQuery = () => {
     staleTime: 5 * 60 * 1000,
   });
   const invalidateLikesQuery = () => {
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: [likesQueryKey],
     });
   };

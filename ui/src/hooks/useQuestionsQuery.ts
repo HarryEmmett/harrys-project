@@ -1,8 +1,8 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { QuestionsResponse } from "@harrys-project/shared/apiSchema";
-import { fetchQuestionsData } from "../api/apiCalls";
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import type { QuestionsResponse } from '@harrys-project/shared/apiSchema';
+import { fetchQuestionsData } from '../api/apiCalls';
 
-const questionsQueryKey = "questionsKey";
+const questionsQueryKey = 'questionsKey';
 
 export const useQuestionsQuery = () => {
   const queryClient = useQueryClient();
@@ -12,7 +12,7 @@ export const useQuestionsQuery = () => {
     staleTime: 5 * 60 * 1000,
   });
   const invalidateQuestionsQuery = () => {
-    queryClient.invalidateQueries({
+    void queryClient.invalidateQueries({
       queryKey: [questionsQueryKey],
     });
   };
