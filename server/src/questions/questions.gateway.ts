@@ -12,28 +12,39 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ZodLoggingPipe } from '../common/pipes/zod-logging.pipe';
+import { UserPresenceService } from '../userPresence/userPresence.service';
 
 @WebSocketGateway({
+  namespace: '/questions',
   cors: {
     origin: '*',
   },
 })
 export class QuestionsGateway {
+  constructor(private readonly userPresenceService: UserPresenceService) {
+    this.userPresenceService = userPresenceService;
+  }
   @WebSocketServer()
   private server: Server | undefined;
 
-  handleConnection(client: Socket) {
-    const message = 'Client connected: ' + client.id;
-    console.log(message);
-    // this will broadcast to all clients including the sender
-    this.server?.emit('clientAck', message);
+  handleConnection() {
+    this.userPresenceService.handleAddUser('/questions');
+    this.server?.emit('onlineQuestionsCount:update', {
+      total: this.userPresenceService.getTotalOnlineCount(),
+      namespace: '/questions',
+      namespaceCount:
+        this.userPresenceService.getNamespaceOnlineCount('/questions'),
+    });
   }
 
-  handleDisconnect(client: Socket) {
-    const message = 'Client disconnected: ' + client.id;
-    console.log(message);
-    // this will broadcast to all clients including the sender, would include the sender but they have disconnected
-    this.server?.emit('clientAck', message);
+  handleDisconnect() {
+    this.userPresenceService.handleRemoveUser('/questions');
+    this.server?.emit('onlineQuestionsCount:update', {
+      total: this.userPresenceService.getTotalOnlineCount(),
+      namespace: '/questions',
+      namespaceCount:
+        this.userPresenceService.getNamespaceOnlineCount('/questions'),
+    });
   }
 
   @SubscribeMessage(constants.ws.questions.QUESTIONS_ROOM)
