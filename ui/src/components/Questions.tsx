@@ -1,40 +1,81 @@
-import type { QuestionsResponse } from '@harrys-project/shared/apiSchema';
-import { constants } from '@harrys-project/shared/constants';
-import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
-import { useRoom } from '../hooks/useRoom';
-import ErrorView from '../views/ErrorView';
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import type { QuestionResponse } from '@harrys-project/shared/apiSchema';
+import questionsData from '../mockData/questions.json';
+import QuestionCard from './QuestionCard';
+import CreateQuestionModal from './CreateQuestionModal';
 import Likes from '../components/Likes';
 import PageVisits from '../components/PageVisits';
 
+const initialQuestions = questionsData as QuestionResponse[];
+
+let nextQuestionId = initialQuestions.length + 1;
+
 const Questions = () => {
-  const { questionsQuery } = useQuestionsQuery();
-  const { postQuestion, joinRoom, leaveRoom } = useRoom(
-    constants.ws.questions.QUESTIONS_ROOM,
-  );
+  const [questions, setQuestions] = useState(initialQuestions);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const { data, isLoading, isError } = questionsQuery;
+  const handleCreateQuestion = (content: string) => {
+    const newQuestion: QuestionResponse = {
+      id: `q${nextQuestionId++}`,
+      userId: 'user_me',
+      content,
+      votes: 0,
+      answered: false,
+      createdAt: new Date().toISOString(),
+    };
+    setQuestions((prev) => [newQuestion, ...prev]);
+  };
 
-  if (isError) return <ErrorView />;
-  if (isLoading) return <p>Loading...</p>;
+  const handleDeleteQuestion = (id: string) => {
+    setQuestions((prev) => prev.filter((question) => question.id !== id));
+  };
 
-  const questions = data?.questions ? data.questions : [];
+  const handleVoteQuestion = (id: string, delta: 1 | -1) => {
+    setQuestions((prev) =>
+      prev.map((question) =>
+        question.id === id
+          ? { ...question, votes: question.votes + delta }
+          : question,
+      ),
+    );
+  };
+
+  const sortedQuestions = [...questions].sort((a, b) => b.votes - a.votes);
+
   return (
-    <div className="p-2">
-      <section id="questions-content">
-        <button onClick={() => postQuestion()}>Add Question</button>
-        <button onClick={joinRoom}>Join Room</button>
-        <button onClick={leaveRoom}>Leave Room</button>
-        <div>
-          <ul>
-            {questions &&
-              questions.map((q: QuestionsResponse['questions'][number]) => {
-                // eslint-disable-next-line react-hooks/purity
-                return <li key={q.id + Math.random()}>{q.content}</li>;
-              })}
-          </ul>
+    <div className="w-full p-2">
+      <section id="questions-content" className="text-left">
+        <div className="mb-4 flex items-center justify-between">
+          <h2>Questions</h2>
+          <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:opacity-90"
+          >
+            <Plus className="h-4 w-4" />
+            Create Question
+          </button>
         </div>
 
-        <section id="likes-content">
+        <ul className="flex flex-col gap-3">
+          {sortedQuestions.map((question) => (
+            <QuestionCard
+              key={question.id}
+              question={question}
+              onDelete={handleDeleteQuestion}
+              onVote={handleVoteQuestion}
+            />
+          ))}
+        </ul>
+
+        <CreateQuestionModal
+          open={isModalOpen}
+          onOpenChange={setIsModalOpen}
+          onCreate={handleCreateQuestion}
+        />
+
+        <section id="likes-content" className="mt-8 flex">
           <div id="likes">
             <Likes />
           </div>

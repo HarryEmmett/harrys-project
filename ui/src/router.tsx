@@ -9,6 +9,9 @@ import {
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import BaseView from './views/BaseView';
 import Questions from './components/Questions';
+import QuestionDetail from './components/QuestionDetail';
+import MessageThread from './components/MessageThread';
+import Profile from './components/Profile';
 
 const rootRoute = createRootRoute({
   component: () => (
@@ -36,8 +39,7 @@ const questionRoute = createRoute({
   path: '/question/$id',
   component: function Question() {
     const params = useParams({ from: '/question/$id' });
-    const id = params.id;
-    return <div className="p-2">Hello from Question id page {id}!</div>;
+    return <QuestionDetail id={params.id} />;
   },
 });
 
@@ -46,8 +48,16 @@ const messageRoute = createRoute({
   path: '/message/$id',
   component: function Message() {
     const params = useParams({ from: '/message/$id' });
-    const id = params.id;
-    return <div className="p-2">Hello from Message id page {id}!</div>;
+    return <MessageThread id={params.id} />;
+  },
+});
+
+const profileRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: '/profile/$id',
+  component: function ProfilePage() {
+    const params = useParams({ from: '/profile/$id' });
+    return <Profile id={params.id} />;
   },
 });
 
@@ -55,6 +65,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   questionRoute,
   messageRoute,
+  profileRoute,
 ]);
 
 export const router = createRouter({
