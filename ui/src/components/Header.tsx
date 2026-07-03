@@ -14,13 +14,6 @@ const Header = () => {
         <Link to="/" className="[&.active]:font-bold">
           Home
         </Link>
-        <Link
-          to="/question/$id"
-          params={{ id: '123' }}
-          className="[&.active]:font-bold"
-        >
-          Question ID
-        </Link>
       </nav>
       <div className="flex items-center gap-4 text-sm text-muted-foreground">
         <span>Online Users: {onlineCount}</span>

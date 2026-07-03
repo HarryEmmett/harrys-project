@@ -1,38 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowBigUp, Send } from 'lucide-react';
+import type { ChatQuestionResponse } from '@harrys-project/shared/apiSchema';
+import { useQuestionChatQuery } from '../hooks/useQuestionChatQuery';
+import ErrorView from '../views/ErrorView';
 
-type ChatQuestion = {
-  id: string;
-  author: string;
-  content: string;
-  votes: number;
+type QuestionChatProps = {
+  questionId: string;
 };
 
-// Placeholder data until the live Q&A chat API is wired up
-const initialChatQuestions: ChatQuestion[] = [
-  {
-    id: 'c1',
-    author: 'Priya Patel',
-    content: 'Does this work with server components too?',
-    votes: 5,
-  },
-  {
-    id: 'c2',
-    author: 'Liam Chen',
-    content: 'Any plans to support offline mode?',
-    votes: 2,
-  },
-];
+const QuestionChat = ({ questionId }: QuestionChatProps) => {
+  const { questionChatQuery } = useQuestionChatQuery(questionId);
+  const { data, isLoading, isError } = questionChatQuery;
 
-let nextChatId = initialChatQuestions.length + 1;
-
-const QuestionChat = () => {
-  const [chatQuestions, setChatQuestions] = useState(initialChatQuestions);
-  const [draft, setDraft] = useState('');
-
-  const sortedChatQuestions = [...chatQuestions].sort(
-    (a, b) => b.votes - a.votes,
+  const [chatQuestions, setChatQuestions] = useState<ChatQuestionResponse[]>(
+    [],
   );
+  const [draft, setDraft] = useState('');
+  const nextChatIdRef = useRef(1);
+  const isInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (data && !isInitializedRef.current) {
+      setChatQuestions(data.chatQuestions);
+      nextChatIdRef.current = data.chatQuestions.length + 1;
+      isInitializedRef.current = true;
+    }
+  }, [data]);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
@@ -40,7 +33,7 @@ const QuestionChat = () => {
     if (!trimmed) return;
     setChatQuestions((prev) => [
       ...prev,
-      { id: `c${nextChatId++}`, author: 'You', content: trimmed, votes: 0 },
+      { id: `c${nextChatIdRef.current++}`, author: 'You', content: trimmed, votes: 0 },
     ]);
     setDraft('');
   };
@@ -54,6 +47,13 @@ const QuestionChat = () => {
       ),
     );
   };
+
+  if (isError) return <ErrorView />;
+  if (isLoading) return <p>Loading...</p>;
+
+  const sortedChatQuestions = [...chatQuestions].sort(
+    (a, b) => b.votes - a.votes,
+  );
 
   return (
     <div className="mt-6 flex flex-col gap-3 rounded-lg border border-border bg-card p-4">

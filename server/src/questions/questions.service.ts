@@ -1,11 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import fs from 'fs';
 import path from 'path';
 import {
   QuestionsResponse,
   questionsResponseSchema,
-  LikesResponse,
-  likesResponseSchema,
+  QuestionResponse,
+  questionSchema,
+  QuestionChatResponse,
+  questionChatResponseSchema,
   PageVisitsResponse,
   pageVisitsResponseSchema,
 } from '@harrys-project/shared/apiSchema';
@@ -20,6 +22,32 @@ export class QuestionsService {
 
     return questionsResponseSchema.parse(JSON.parse(fileJson));
   }
+  getQuestionById(id: string): QuestionResponse {
+    const { questions } = this.getQuestions();
+    const question = questions.find((question) => question.id === id);
+
+    if (!question) {
+      throw new NotFoundException(`Question with id "${id}" not found`);
+    }
+
+    return questionSchema.parse(question);
+  }
+  getQuestionChat(id: string): QuestionChatResponse {
+    const fileJson = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        'src',
+        'mockApiData',
+        'mockQuestionChatsData.json',
+      ),
+      'utf-8',
+    );
+    const chatsByQuestionId = JSON.parse(fileJson) as Record<string, unknown[]>;
+
+    return questionChatResponseSchema.parse({
+      chatQuestions: chatsByQuestionId[id] ?? [],
+    });
+  }
   getPageVisits(): PageVisitsResponse {
     const fileJson = fs.readFileSync(
       path.join(process.cwd(), 'src', 'mockApiData', 'mockPageVisitsData.json'),
@@ -27,13 +55,5 @@ export class QuestionsService {
     );
 
     return pageVisitsResponseSchema.parse(JSON.parse(fileJson));
-  }
-  getLikes(): LikesResponse {
-    const fileJson = fs.readFileSync(
-      path.join(process.cwd(), 'src', 'mockApiData', 'mockLikesData.json'),
-      'utf-8',
-    );
-
-    return likesResponseSchema.parse(JSON.parse(fileJson));
   }
 }

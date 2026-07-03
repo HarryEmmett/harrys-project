@@ -4,7 +4,6 @@ import type { QuestionResponse } from '@harrys-project/shared/apiSchema';
 import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
 import QuestionCard from './QuestionCard';
 import CreateQuestionModal from './CreateQuestionModal';
-import PageVisits from '../components/PageVisits';
 import ErrorView from '../views/ErrorView';
 
 const Questions = () => {

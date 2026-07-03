@@ -1,49 +1,38 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { User } from 'lucide-react';
+import type { MessageResponse } from '@harrys-project/shared/apiSchema';
 import { useFriendsQuery } from '../hooks/useFriendsQuery';
+import { useMessagesQuery } from '../hooks/useMessagesQuery';
+import ErrorView from '../views/ErrorView';
 import MessageReplyBox from './MessageReplyBox';
-
-type Message = {
-  id: string;
-  author: 'me' | 'them';
-  authorName: string;
-  content: string;
-  sentAt: string;
-};
-
-// Placeholder data until the messages API is wired up
-const initialMessages: Message[] = [
-  {
-    id: 'm1',
-    author: 'me',
-    authorName: 'You',
-    content: 'Hey, are you joining the session later?',
-    sentAt: '10:02 AM',
-  },
-  {
-    id: 'm2',
-    author: 'them',
-    authorName: 'Ava Thompson',
-    content: 'Yep, see you there!',
-    sentAt: '10:03 AM',
-  },
-];
-
-let nextMessageId = initialMessages.length + 1;
 
 type MessageThreadProps = {
   id: string;
 };
 
 const MessageThread = ({ id }: MessageThreadProps) => {
-  const [messages, setMessages] = useState(initialMessages);
   const { friendsQuery } = useFriendsQuery();
   const friend = friendsQuery.data?.friends.find((f) => f.id === id);
 
+  const { messagesQuery } = useMessagesQuery(id);
+  const { data, isLoading, isError } = messagesQuery;
+
+  const [messages, setMessages] = useState<MessageResponse[]>([]);
+  const nextMessageIdRef = useRef(1);
+  const isInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (data && !isInitializedRef.current) {
+      setMessages(data.messages);
+      nextMessageIdRef.current = data.messages.length + 1;
+      isInitializedRef.current = true;
+    }
+  }, [data]);
+
   const handleSend = (content: string) => {
-    const newMessage: Message = {
-      id: `m${nextMessageId++}`,
+    const newMessage: MessageResponse = {
+      id: `m${nextMessageIdRef.current++}`,
       author: 'me',
       authorName: 'You',
       content,
@@ -54,6 +43,9 @@ const MessageThread = ({ id }: MessageThreadProps) => {
     };
     setMessages((prev) => [...prev, newMessage]);
   };
+
+  if (isError) return <ErrorView />;
+  if (isLoading) return <p>Loading...</p>;
 
   return (
     <div className="flex w-full max-w-xl flex-col gap-3 p-2 text-left">

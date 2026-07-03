@@ -63,9 +63,44 @@ export const friendsResponseSchema = z
   })
   .strict();
 
+export const chatQuestionSchema = z
+  .object({
+    id: z.string(),
+    author: z.string(),
+    content: z.string(),
+    votes: z.number(),
+  })
+  .strict();
+
+export const questionChatResponseSchema = z
+  .object({
+    chatQuestions: z.array(chatQuestionSchema),
+  })
+  .strict();
+
+export const messageSchema = z
+  .object({
+    id: z.string(),
+    author: z.enum(['me', 'them']),
+    authorName: z.string(),
+    content: z.string(),
+    sentAt: z.string(),
+  })
+  .strict();
+
+export const messagesResponseSchema = z
+  .object({
+    messages: z.array(messageSchema),
+  })
+  .strict();
+
 export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
 export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
 export type LikesResponse = z.infer<typeof likesResponseSchema>;
 export type QuestionResponse = z.infer<typeof questionSchema>;
 export type FriendsResponse = z.infer<typeof friendsResponseSchema>;
 export type FriendResponse = z.infer<typeof friendSchema>;
+export type ChatQuestionResponse = z.infer<typeof chatQuestionSchema>;
+export type QuestionChatResponse = z.infer<typeof questionChatResponseSchema>;
+export type MessageResponse = z.infer<typeof messageSchema>;
+export type MessagesResponse = z.infer<typeof messagesResponseSchema>;

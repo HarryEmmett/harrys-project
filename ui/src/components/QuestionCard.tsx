@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router';
 import { ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
 import type { QuestionResponse } from '@harrys-project/shared/apiSchema';
 
@@ -11,7 +12,13 @@ const QuestionCard = ({ question, onDelete, onVote }: QuestionCardProps) => {
   return (
     <li className="flex items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 text-left">
       <div>
-        <p className="text-sm text-foreground">{question.content}</p>
+        <Link
+          to="/question/$id"
+          params={{ id: question.id }}
+          className="text-sm text-foreground hover:underline"
+        >
+          {question.content}
+        </Link>
         <div className="mt-2 flex items-center gap-3 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
             <button
