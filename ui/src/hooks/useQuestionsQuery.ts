@@ -12,6 +12,7 @@ export const useQuestionsQuery = () => {
     queryFn: () => fetchQuestionsData(),
     staleTime: queryClientConfig.config.STALE_TIME,
   });
+  console.log(questionsQuery.data);
   const invalidateQuestionsQuery = () => {
     void queryClient.invalidateQueries({
       queryKey: [queryClientConfig.queryKeys.QUESTIONS_KEY],

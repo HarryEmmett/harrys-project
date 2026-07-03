@@ -6,6 +6,7 @@ import QuestionCard from './QuestionCard';
 import CreateQuestionModal from './CreateQuestionModal';
 import Likes from '../components/Likes';
 import PageVisits from '../components/PageVisits';
+import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
 
 const initialQuestions = questionsData as QuestionResponse[];
 

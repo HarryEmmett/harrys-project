@@ -4,9 +4,11 @@ import {
   questionsResponseSchema,
   pageVisitsResponseSchema,
   likesResponseSchema,
+  friendsResponseSchema,
   type QuestionsResponse,
   type PageVisitsResponse,
   type LikesResponse,
+  type FriendsResponse,
 } from '@harrys-project/shared/apiSchema';
 
 const apiUrl =
@@ -32,4 +34,9 @@ export async function fetchPageVisitsData(): Promise<PageVisitsResponse> {
 export async function fetchLikesData(): Promise<LikesResponse> {
   const data = await fetchData(constants.rest.endpoints.LIKES_ENDPOINT);
   return likesResponseSchema.parse(data);
+}
+
+export async function fetchFriendsData(): Promise<FriendsResponse> {
+  const data = await fetchData(constants.rest.endpoints.FRIENDS_ENDPOINT);
+  return friendsResponseSchema.parse(data);
 }

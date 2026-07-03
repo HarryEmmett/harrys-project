@@ -47,7 +47,25 @@ export const likesResponseSchema = z
   })
   .strict();
 
+export const friendSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    email: z.string(),
+    bio: z.string(),
+    isOnline: z.boolean(),
+  })
+  .strict();
+
+export const friendsResponseSchema = z
+  .object({
+    friends: z.array(friendSchema),
+  })
+  .strict();
+
 export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
 export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
 export type LikesResponse = z.infer<typeof likesResponseSchema>;
 export type QuestionResponse = z.infer<typeof questionSchema>;
+export type FriendsResponse = z.infer<typeof friendsResponseSchema>;
+export type FriendResponse = z.infer<typeof friendSchema>;
