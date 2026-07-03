@@ -1,24 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
 import type { QuestionResponse } from '@harrys-project/shared/apiSchema';
-import questionsData from '../mockData/questions.json';
+import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
 import QuestionCard from './QuestionCard';
 import CreateQuestionModal from './CreateQuestionModal';
-import Likes from '../components/Likes';
 import PageVisits from '../components/PageVisits';
-import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
-
-const initialQuestions = questionsData as QuestionResponse[];
-
-let nextQuestionId = initialQuestions.length + 1;
+import ErrorView from '../views/ErrorView';
 
 const Questions = () => {
-  const [questions, setQuestions] = useState(initialQuestions);
+  const { questionsQuery } = useQuestionsQuery();
+  const { data, isLoading, isError } = questionsQuery;
+
+  const [questions, setQuestions] = useState<QuestionResponse[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const nextQuestionIdRef = useRef(1);
+  const isInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (data && !isInitializedRef.current) {
+      setQuestions(data.questions);
+      nextQuestionIdRef.current = data.questions.length + 1;
+      isInitializedRef.current = true;
+    }
+  }, [data]);
 
   const handleCreateQuestion = (content: string) => {
     const newQuestion: QuestionResponse = {
-      id: `q${nextQuestionId++}`,
+      id: `q${nextQuestionIdRef.current++}`,
       userId: 'user_me',
       content,
       votes: 0,
@@ -41,6 +49,9 @@ const Questions = () => {
       ),
     );
   };
+
+  if (isError) return <ErrorView />;
+  if (isLoading) return <p>Loading...</p>;
 
   const sortedQuestions = [...questions].sort((a, b) => b.votes - a.votes);
 
@@ -75,15 +86,6 @@ const Questions = () => {
           onOpenChange={setIsModalOpen}
           onCreate={handleCreateQuestion}
         />
-
-        <section id="likes-content" className="mt-8 flex">
-          <div id="likes">
-            <Likes />
-          </div>
-          <div id="viewers">
-            <PageVisits />
-          </div>
-        </section>
       </section>
     </div>
   );

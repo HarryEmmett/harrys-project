@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { UserPlus } from 'lucide-react';
-import { friends as initialFriends, type Friend } from '../mockData/friends';
+import type { FriendResponse } from '@harrys-project/shared/apiSchema';
+import { useFriendsQuery } from '../hooks/useFriendsQuery';
 import AddFriendModal from './AddFriendModal';
-
-let nextFriendId = initialFriends.length + 1;
+import ErrorView from '../views/ErrorView';
 
 const getInitials = (name: string) =>
   name
@@ -14,7 +14,7 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const FriendAvatar = ({ name, isOnline }: Friend) => (
+const FriendAvatar = ({ name, isOnline }: FriendResponse) => (
   <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium text-secondary-foreground">
     {getInitials(name)}
     {isOnline && (
@@ -24,12 +24,25 @@ const FriendAvatar = ({ name, isOnline }: Friend) => (
 );
 
 const FriendsPanel = () => {
-  const [friends, setFriends] = useState(initialFriends);
+  const { friendsQuery } = useFriendsQuery();
+  const { data, isLoading, isError } = friendsQuery;
+
+  const [friends, setFriends] = useState<FriendResponse[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const nextFriendIdRef = useRef(1);
+  const isInitializedRef = useRef(false);
+
+  useEffect(() => {
+    if (data && !isInitializedRef.current) {
+      setFriends(data.friends);
+      nextFriendIdRef.current = data.friends.length + 1;
+      isInitializedRef.current = true;
+    }
+  }, [data]);
 
   const handleAddFriend = (name: string) => {
-    const newFriend: Friend = {
-      id: `${nextFriendId++}`,
+    const newFriend: FriendResponse = {
+      id: `${nextFriendIdRef.current++}`,
       name,
       email: '',
       bio: '',
@@ -37,6 +50,9 @@ const FriendsPanel = () => {
     };
     setFriends((prev) => [...prev, newFriend]);
   };
+
+  if (isError) return <ErrorView />;
+  if (isLoading) return <p>Loading...</p>;
 
   const onlineFriends = friends.filter((friend) => friend.isOnline);
   const offlineFriends = friends.filter((friend) => !friend.isOnline);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { User } from 'lucide-react';
-import { friends } from '../mockData/friends';
+import { useFriendsQuery } from '../hooks/useFriendsQuery';
 import MessageReplyBox from './MessageReplyBox';
 
 type Message = {
@@ -38,7 +38,8 @@ type MessageThreadProps = {
 
 const MessageThread = ({ id }: MessageThreadProps) => {
   const [messages, setMessages] = useState(initialMessages);
-  const friend = friends.find((f) => f.id === id);
+  const { friendsQuery } = useFriendsQuery();
+  const friend = friendsQuery.data?.friends.find((f) => f.id === id);
 
   const handleSend = (content: string) => {
     const newMessage: Message = {

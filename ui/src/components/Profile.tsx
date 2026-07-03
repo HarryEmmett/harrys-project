@@ -1,4 +1,5 @@
-import { friends } from '../mockData/friends';
+import { useFriendsQuery } from '../hooks/useFriendsQuery';
+import ErrorView from '../views/ErrorView';
 
 // Placeholder data until the profile API is wired up
 const myProfile = {
@@ -20,8 +21,14 @@ type ProfileProps = {
 };
 
 const Profile = ({ id }: ProfileProps) => {
+  const { friendsQuery } = useFriendsQuery();
+  const { data, isLoading, isError } = friendsQuery;
+
+  if (isError) return <ErrorView />;
+  if (isLoading) return <p>Loading...</p>;
+
   const profile =
-    id === 'me' ? myProfile : friends.find((friend) => friend.id === id);
+    id === 'me' ? myProfile : data?.friends.find((friend) => friend.id === id);
 
   if (!profile) {
     return (

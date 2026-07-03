@@ -3,11 +3,9 @@ import { constants } from '@harrys-project/shared/constants';
 import {
   questionsResponseSchema,
   pageVisitsResponseSchema,
-  likesResponseSchema,
   friendsResponseSchema,
   type QuestionsResponse,
   type PageVisitsResponse,
-  type LikesResponse,
   type FriendsResponse,
 } from '@harrys-project/shared/apiSchema';
 
@@ -29,11 +27,6 @@ export async function fetchQuestionsData(): Promise<QuestionsResponse> {
 export async function fetchPageVisitsData(): Promise<PageVisitsResponse> {
   const data = await fetchData(constants.rest.endpoints.PAGE_VISITS_ENDPOINT);
   return pageVisitsResponseSchema.parse(data);
-}
-
-export async function fetchLikesData(): Promise<LikesResponse> {
-  const data = await fetchData(constants.rest.endpoints.LIKES_ENDPOINT);
-  return likesResponseSchema.parse(data);
 }
 
 export async function fetchFriendsData(): Promise<FriendsResponse> {
