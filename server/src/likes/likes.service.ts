@@ -23,6 +23,7 @@ export class LikesService {
   }
 
   incrementLikes(): LikesResponse {
+    // DB: UPDATE likes SET count = count + 1 WHERE id = 1 (or an INSERT per like row, if you want per-user/undo semantics later)
     this.likes += 1;
     return this.getLikes();
   }

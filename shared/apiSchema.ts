@@ -94,6 +94,42 @@ export const messagesResponseSchema = z
   })
   .strict();
 
+export const createQuestionRequestSchema = z
+  .object({
+    userId: z.string(),
+    content: z.string(),
+  })
+  .strict();
+
+export const voteQuestionRequestSchema = z
+  .object({
+    delta: z.union([z.literal(1), z.literal(-1)]),
+  })
+  .strict();
+
+export const createChatQuestionRequestSchema = z
+  .object({
+    author: z.string(),
+    content: z.string(),
+  })
+  .strict();
+
+export const createMessageRequestSchema = z
+  .object({
+    author: z.enum(['me', 'them']),
+    authorName: z.string(),
+    content: z.string(),
+  })
+  .strict();
+
+export const createFriendRequestSchema = z
+  .object({
+    name: z.string(),
+    email: z.string().default(''),
+    bio: z.string().default(''),
+  })
+  .strict();
+
 export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
 export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
 export type LikesResponse = z.infer<typeof likesResponseSchema>;
@@ -104,3 +140,10 @@ export type ChatQuestionResponse = z.infer<typeof chatQuestionSchema>;
 export type QuestionChatResponse = z.infer<typeof questionChatResponseSchema>;
 export type MessageResponse = z.infer<typeof messageSchema>;
 export type MessagesResponse = z.infer<typeof messagesResponseSchema>;
+export type CreateQuestionRequest = z.infer<typeof createQuestionRequestSchema>;
+export type VoteQuestionRequest = z.infer<typeof voteQuestionRequestSchema>;
+export type CreateChatQuestionRequest = z.infer<
+  typeof createChatQuestionRequestSchema
+>;
+export type CreateMessageRequest = z.infer<typeof createMessageRequestSchema>;
+export type CreateFriendRequest = z.infer<typeof createFriendRequestSchema>;

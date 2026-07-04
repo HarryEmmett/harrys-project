@@ -21,7 +21,10 @@ export class LikesGateway {
   private server: Server | undefined;
 
   handleConnection(@ConnectedSocket() client: Socket) {
-    client.emit(constants.ws.likes.LIKES_EMIT_EVENT, this.likesService.getLikes());
+    client.emit(
+      constants.ws.likes.LIKES_EMIT_EVENT,
+      this.likesService.getLikes(),
+    );
   }
 
   @SubscribeMessage(constants.ws.likes.LIKES_EMIT_EVENT)
