@@ -3,8 +3,6 @@ export const constants = {
     endpoints: {
       QUESTIONS_ENDPOINT: "/questions",
       PAGE_VISITS_ENDPOINT: "/page-visits",
-      FRIENDS_ENDPOINT: "/friends",
-      MESSAGES_ENDPOINT: "/messages",
     },
     queryClientConfig: {
       queryKeys: {
@@ -29,10 +27,6 @@ export const constants = {
       QUESTIONS_ROOM: "question-room",
       CHAT_QUESTION_ADDED_EVENT: "chat-question-added",
       CHAT_QUESTION_UPDATED_EVENT: "chat-question-updated",
-    },
-    messages: {
-      MESSAGE_ROOM: "message-room",
-      MESSAGE_ADDED_EVENT: "message-added",
     },
     presence: {
       ONLINE_COUNT_EVENT: "onlineCount:update",

@@ -5,14 +5,10 @@ import {
   questionSchema,
   questionChatResponseSchema,
   pageVisitsResponseSchema,
-  friendsResponseSchema,
-  messagesResponseSchema,
   type QuestionsResponse,
   type QuestionResponse,
   type QuestionChatResponse,
   type PageVisitsResponse,
-  type FriendsResponse,
-  type MessagesResponse,
 } from '@harrys-project/shared/apiSchema';
 
 const apiUrl =
@@ -49,18 +45,4 @@ export async function fetchQuestionChatData(
     `${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${id}/chat`,
   );
   return questionChatResponseSchema.parse(data);
-}
-
-export async function fetchFriendsData(): Promise<FriendsResponse> {
-  const data = await fetchData(constants.rest.endpoints.FRIENDS_ENDPOINT);
-  return friendsResponseSchema.parse(data);
-}
-
-export async function fetchMessagesData(
-  friendId: string,
-): Promise<MessagesResponse> {
-  const data = await fetchData(
-    `${constants.rest.endpoints.MESSAGES_ENDPOINT}/${friendId}`,
-  );
-  return messagesResponseSchema.parse(data);
 }

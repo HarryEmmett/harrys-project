@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { UserPlus } from 'lucide-react';
-import type { FriendResponse } from '@harrys-project/shared/apiSchema';
+import type { Friend } from '../mockData/friends';
 import { useFriendsQuery } from '../hooks/useFriendsQuery';
 import AddFriendModal from './AddFriendModal';
 import ErrorView from '../views/ErrorView';
@@ -14,7 +14,7 @@ const getInitials = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
-const FriendAvatar = ({ name, isOnline }: FriendResponse) => (
+const FriendAvatar = ({ name, isOnline }: Friend) => (
   <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-medium text-secondary-foreground">
     {getInitials(name)}
     {isOnline && (
@@ -27,7 +27,7 @@ const FriendsPanel = () => {
   const { friendsQuery } = useFriendsQuery();
   const { data, isLoading, isError } = friendsQuery;
 
-  const [friends, setFriends] = useState<FriendResponse[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const nextFriendIdRef = useRef(1);
   const isInitializedRef = useRef(false);
@@ -41,7 +41,7 @@ const FriendsPanel = () => {
   }, [data]);
 
   const handleAddFriend = (name: string) => {
-    const newFriend: FriendResponse = {
+    const newFriend: Friend = {
       id: `${nextFriendIdRef.current++}`,
       name,
       email: '',

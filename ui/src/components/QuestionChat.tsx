@@ -33,7 +33,12 @@ const QuestionChat = ({ questionId }: QuestionChatProps) => {
     if (!trimmed) return;
     setChatQuestions((prev) => [
       ...prev,
-      { id: `c${nextChatIdRef.current++}`, author: 'You', content: trimmed, votes: 0 },
+      {
+        id: `c${nextChatIdRef.current++}`,
+        author: 'You',
+        content: trimmed,
+        votes: 0,
+      },
     ]);
     setDraft('');
   };
