@@ -1,54 +1,125 @@
-# Slido Clone — Progress & Planth the current-state summary, known bugs, and the 7-phase roadmap we discussed. Let me know when you want to start on a
+# Harry's Project — Current State & Plan
+
+Started as a Slido clone; it's now a small social app: live Q&A (questions +
+per-question chat), a friends panel, direct messages, profiles, likes, and
+presence. NestJS + socket.io backend, React + TanStack Router/Query + zustand
+frontend, shared zod schemas in `shared/`.
 
 ## Current state
 
-### Backend (NestJS)
-- `QuestionsModule`: REST GETs for `/questions`, `/page-visits`, `/likes` — all reading static mock JSON off disk on every request. No writes, no DB.
-- `QuestionsGateway` (`/questions` namespace): join/leave room, and a `questions-added` handler that just re-broadcasts to the room. It never persists 
-the question anywhere — the mock JSON file backing the REST endpoint is untouched.────────────────────────────────────────────────────────────────────────────
-- `UserPresenceModule`: in-memory `Map<namespace, count>`, tracked per-socket-namespace, wired into both `/presence` and `/questions` gateways.
-- `eventSchema` exists in the shared schema but isn't used anywhere — there's no concept of a specific event/room with its own data yet; everything is 
-one global mock dataset.
+### What works
+- **REST reads, end to end**: `/questions`, `/questions/:id`, `/questions/:id/chat`,
+  `/friends`, `/messages/:friendId`, `/likes`, `/page-visits` — all validated with
+  shared zod schemas on both sides. Everything is read-only mock JSON except likes.
+- **UI**: routes for `/`, `/question/$id`, `/message/$id`, `/profile/$id` are all
+  real pages now (no stubs left). Questions list with create/vote/delete, question
+  detail with live-chat panel, friends panel with add-friend modal, message threads
+  with reply box, profile pages, dark/light theme.
+- **LikesService** is the one feature with real server-side state: in-memory count
+  seeded from JSON at boot, `incrementLikes()`, and a `/likes` gateway that pushes
+  the count on connect and rebroadcasts on every like.
 
-### Frontend
-- Router has `/`, `/question/$id`, `/message/$id` — the latter two are stub placeholder pages, not wired to anything.
-- `useQuestionsQuery`/`useLikesQuery`/`usePageVisitsQuery` pull the static mock data via react-query.
-- `useRoom` connects to `/questions`, joins a hardcoded room, and `postQuestion` sends a hardcoded fixed payload (no text input yet).
-- `useOnlineCount` only opens a socket to `/presence`, but also registers a listener for `onlineQuestionsCount:update` — that event is only ever emitted
-on the `/questions` namespace, so that handler will never fire.
-- `Questions.tsx` keys list items with `q.id + Math.random()` (with an eslint-disable) — forces a remount every render; should just be `q.id`.
+### The core architectural problem: all writes are an illusion
+Every interactive feature uses the same copy-pasted pattern
+(`Questions.tsx`, `FriendsPanel.tsx`, `MessageThread.tsx`, `QuestionChat.tsx`):
 
-**Summary:** the plumbing works (REST + shared zod schema + websocket round trip) but almost none of the actual Slido feature set exists yet, and there
-'s no real data layer — new questions only live in whichever connected clients' local react-query cache happened to receive the broadcast; a refresh or
-a new joiner loses them.
+1. Fetch once via react-query, copy into local `useState` guarded by an
+   `isInitializedRef` so it never re-syncs.
+2. All mutations (create question, vote, delete, add friend, send message, post
+   chat, upvote) only touch that local state.
 
-## Known bugs to fix
-- [ ] `useOnlineCount` connects only to `/presence` but listens for a `/questions`-only event (`onlineQuestionsCount:update`) — dead listener.
-- [ ] `Questions.tsx` list key uses `q.id + Math.random()` — remove the `Math.random()`, just use `q.id`.
-- [ ] Websocket-posted questions are never persisted server-side — only broadcast to currently connected room members.
+The server has **zero write endpoints** (except the unused likes gateway). Nothing
+persists, nothing syncs between clients, and a refresh discards everything. Fixing
+this one pattern is most of the roadmap.
+
+### Dead / disconnected code
+- `useRoom.ts` — the entire questions websocket round-trip (join room, post
+  question, merge broadcasts into the query cache) is **imported by nothing**.
+  `Questions.tsx` went local-state instead. `QuestionsGateway` on the server is
+  correspondingly unreachable from the UI.
+- `useOnlineCount.ts` — connects to the **default** namespace (no gateway there)
+  and listens for `clientOnlineAck`, which no server code emits. The header's
+  "Online Users" is permanently 0. The gateways actually emit `onlineCount:update`
+  (on `/presence`) and `onlineQuestionsCount:update` (on `/questions`).
+- `usePageVisitsQuery.ts` + `/page-visits` endpoint — no consumer.
+- Likes: server is done (REST + gateway) but **no UI component uses it** — there's
+  no `useLikesQuery` and nothing connects to `/likes`.
+- `@nestjs/typeorm` is installed but never imported.
+
+### Known bugs (updated — old list was stale)
+- [x] ~~`Questions.tsx` key uses `q.id + Math.random()`~~ — already fixed, keys by `question.id`.
+- [ ] `useOnlineCount` dead listener (see above) — bug still exists but has changed
+  shape since the old plan: wrong namespace **and** wrong event name now.
+- [ ] Presence double-counting: `UserPresenceService` counts *connections per
+  namespace*, so one user on two namespaces counts twice in `getTotalOnlineCount()`.
+- [ ] `useRoom` double-disconnect: both effects' cleanups call `socket.disconnect()`
+  (moot while dead, fix when resurrecting).
+- [ ] `MessageThread` stores `sentAt` as a locale time string while the schema/mock
+  use ISO timestamps — will bite as soon as messages persist.
 
 ## Roadmap
 
-### 1. Real data layer
-- Replace static-JSON reads with an in-memory `EventsStore`/`QuestionsStore` service (per-event, keyed by room/event id) that the gateway actually writes
-to and the REST controller reads from. Prerequisite for everything else. DB (SQLite/Postgres + Prisma) can come later once the shape is proven.
+Ordering principle: make writes real on the server first (cheap, unblocks
+everything), then swap the UI's local-state pattern for real mutations one feature
+at a time, then add realtime where it earns its keep. LikesService is the template
+for phase 1 — it already does in-memory-store-seeded-from-JSON correctly.
 
-### 2. Events & rooms
-- Use the existing `eventSchema`: endpoint to create an event, generates a room/join code; `/question/$id` route becomes the real per-event view instead
-of a stub.
+### Phase 0 — Delete or decide (small, do first)
+- Fix `useOnlineCount`: connect to `/presence`, listen for `onlineCount:update`,
+  read `total` from the payload. Fix the double-count in `UserPresenceService`
+  (track socket ids per namespace in a `Map<string, Set<string>>`, or count unique
+  clients) while you're in there.
+- Decide likes' fate: either add a like button (Footer or Header) wired to the
+  existing `/likes` gateway — a nice tiny end-to-end realtime win — or delete the
+  module. Same for `/page-visits`: use it or remove it.
+- Delete `useRoom.ts` for now (git keeps it); phase 3 rebuilds it properly. Keeping
+  dead realtime code around just confuses every later change.
 
-### 3. Questions feature complete
-- Real submit form (replace hardcoded payload), upvote, mark-answered (host-only), sort by votes, full-list sync on join (not just appends).
+### Phase 1 — Real writes on the server (in-memory stores)
+Convert each service from read-file-per-request to the LikesService pattern: load
+mock JSON once in the constructor, hold state in memory, expose mutations. Add REST
+write endpoints, with request-body zod schemas added to `shared/apiSchema.ts`
+(create-question, vote, delete, add-friend, send-message, post-chat):
+- `POST /questions`, `POST /questions/:id/vote`, `DELETE /questions/:id`
+- `POST /questions/:id/chat`, `POST /questions/:id/chat/:chatId/vote`
+- `POST /friends`, `POST /messages/:friendId`
+Server generates ids and timestamps (never trust client ids — `Questions.tsx`
+currently invents `q${n}` ids that will collide with mock data and other clients).
+DB comes in phase 5; don't block on it.
 
-### 4. Presence cleanup
-- Consolidate `/presence` vs `/questions` online-count logic (currently split across two gateways/namespaces in a way that half-fires), fix the `useOnlin
-eCount` namespace mismatch bug.
+### Phase 2 — Real mutations in the UI
+Feature by feature (questions → chat → friends → messages), replace the
+local-state-copy pattern with `useMutation` + query invalidation (or
+`setQueryData` for optimistic updates). Delete the `isInitializedRef` hydrate-once
+blocks — react-query's cache becomes the single source of truth again. After this
+phase, refresh/multi-tab behave correctly even before websockets return.
 
-### 5. Identity/roles
-- Anonymous user id persisted client-side (localStorage), host vs attendee distinction for who can create events / mark answered.
+### Phase 3 — Realtime where it matters
+- Questions + question chat are the features that want live sync (that's the Slido
+  part). Rebuild `useRoom` against the `/questions` gateway: room per question id
+  for chat, a global room for the questions list; gateway handlers call the same
+  store services as REST so both paths agree; broadcast writes into rooms and merge
+  into the query cache client-side (the old useRoom merge logic was right — reuse it).
+- Send full-state snapshot on room join so late joiners aren't missing history.
+- Friends/messages can stay REST-only until there's a second real user; don't
+  build DM websockets speculatively.
 
-### 6. Polish
-- Join-by-link/code UI, styling pass, remove the `Math.random()` key hack.
+### Phase 4 — Identity
+- Anonymous persistent user id + display name in localStorage, sent with every
+  write; replaces the hardcoded `user_me` / `'You'` author fields.
+- `Profile.tsx` `me` placeholder becomes real data. Host-vs-attendee roles
+  (mark-answered, delete-any-question) ride on this if the Slido direction continues.
 
-### 7. Tests + real DB
-- Add test coverage once behavior is settled, then swap the in-memory store for a real DB.
+### Phase 5 — Real persistence
+- Swap in SQLite via the already-installed `@nestjs/typeorm` (or drop it for
+  Prisma/drizzle — but decide, and remove the unused dep if not TypeORM).
+  Store interfaces from phase 1 mean only the service internals change.
+
+### Phase 6 — Tests & tooling
+- There are currently **no tests and no test runner** in any package (`server`'s
+  `build` script is also wrong — it runs `node dist/...` instead of `nest build`; fix that).
+- Add vitest: unit tests for the store services (phase 1 made them pure and
+  testable), supertest e2e for the REST write paths, and a couple of
+  react-testing-library tests for the mutation hooks.
+- Do this after phase 2, not last-last — phases 3–5 are much safer with the write
+  paths under test.
