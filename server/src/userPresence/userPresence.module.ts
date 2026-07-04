@@ -6,6 +6,6 @@ import { UserPresenceService } from './userPresence.service';
   imports: [],
   controllers: [],
   providers: [UserPresenceGateway, UserPresenceService],
-  exports: [UserPresenceService],
+  exports: [UserPresenceService, UserPresenceGateway],
 })
 export class UserPresenceModule {}

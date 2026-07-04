@@ -41,12 +41,6 @@ export const pageVisitsResponseSchema = z
   })
   .strict();
 
-export const likesResponseSchema = z
-  .object({
-    likes: z.number(),
-  })
-  .strict();
-
 export const friendSchema = z
   .object({
     id: z.string(),
@@ -132,7 +126,6 @@ export const createFriendRequestSchema = z
 
 export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
 export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
-export type LikesResponse = z.infer<typeof likesResponseSchema>;
 export type QuestionResponse = z.infer<typeof questionSchema>;
 export type FriendsResponse = z.infer<typeof friendsResponseSchema>;
 export type FriendResponse = z.infer<typeof friendSchema>;

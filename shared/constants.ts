@@ -3,7 +3,6 @@ export const constants = {
     endpoints: {
       QUESTIONS_ENDPOINT: "/questions",
       PAGE_VISITS_ENDPOINT: "/page-visits",
-      LIKES_ENDPOINT: "/likes",
       FRIENDS_ENDPOINT: "/friends",
       MESSAGES_ENDPOINT: "/messages",
     },
@@ -13,7 +12,6 @@ export const constants = {
         QUESTION_KEY: "questionKey",
         QUESTION_CHAT_KEY: "questionChatKey",
         PAGE_VISITS_KEY: "pageVisitsKey",
-        LIKES_KEY: "likesKey",
         FRIENDS_KEY: "friendsKey",
         MESSAGES_KEY: "messagesKey",
       },
@@ -32,12 +30,12 @@ export const constants = {
       CHAT_QUESTION_ADDED_EVENT: "chat-question-added",
       CHAT_QUESTION_UPDATED_EVENT: "chat-question-updated",
     },
-    likes: {
-      LIKES_EMIT_EVENT: "likes-added",
-    },
     messages: {
       MESSAGE_ROOM: "message-room",
       MESSAGE_ADDED_EVENT: "message-added",
+    },
+    presence: {
+      ONLINE_COUNT_EVENT: "onlineCount:update",
     },
     CONNECT_EVENT: "connect",
   },

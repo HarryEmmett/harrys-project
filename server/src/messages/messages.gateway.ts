@@ -6,6 +6,8 @@ import {
   WebSocketServer,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
+import { UserPresenceService } from '../userPresence/userPresence.service';
+import { UserPresenceGateway } from '../userPresence/userPresence.gateway';
 
 // One room per conversation (room id = friendId). MessagesController joins
 // mutations to this gateway the same way QuestionsController does: it
@@ -18,8 +20,23 @@ import { Server, Socket } from 'socket.io';
   },
 })
 export class MessagesGateway {
+  constructor(
+    private readonly userPresenceService: UserPresenceService,
+    private readonly userPresenceGateway: UserPresenceGateway,
+  ) {}
+
   @WebSocketServer()
   private server: Server | undefined;
+
+  handleConnection() {
+    this.userPresenceService.handleAddUser('/messages');
+    this.userPresenceGateway.broadcastOnlineCount();
+  }
+
+  handleDisconnect() {
+    this.userPresenceService.handleRemoveUser('/messages');
+    this.userPresenceGateway.broadcastOnlineCount();
+  }
 
   @SubscribeMessage(constants.ws.messages.MESSAGE_ROOM)
   joinMessageRoom(client: Socket, friendId: string) {

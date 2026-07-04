@@ -14,6 +14,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ZodLoggingPipe } from '../common/pipes/zod-logging.pipe';
 import { UserPresenceService } from '../userPresence/userPresence.service';
+import { UserPresenceGateway } from '../userPresence/userPresence.gateway';
 import { QuestionsService } from './questions.service';
 
 @WebSocketGateway({
@@ -25,6 +26,7 @@ import { QuestionsService } from './questions.service';
 export class QuestionsGateway {
   constructor(
     private readonly userPresenceService: UserPresenceService,
+    private readonly userPresenceGateway: UserPresenceGateway,
     private readonly questionsService: QuestionsService,
   ) {}
   @WebSocketServer()
@@ -32,22 +34,12 @@ export class QuestionsGateway {
 
   handleConnection() {
     this.userPresenceService.handleAddUser('/questions');
-    this.server?.emit('onlineQuestionsCount:update', {
-      total: this.userPresenceService.getTotalOnlineCount(),
-      namespace: '/questions',
-      namespaceCount:
-        this.userPresenceService.getNamespaceOnlineCount('/questions'),
-    });
+    this.userPresenceGateway.broadcastOnlineCount();
   }
 
   handleDisconnect() {
     this.userPresenceService.handleRemoveUser('/questions');
-    this.server?.emit('onlineQuestionsCount:update', {
-      total: this.userPresenceService.getTotalOnlineCount(),
-      namespace: '/questions',
-      namespaceCount:
-        this.userPresenceService.getNamespaceOnlineCount('/questions'),
-    });
+    this.userPresenceGateway.broadcastOnlineCount();
   }
 
   // Rooms are keyed by whatever id the client passes in (a question id, in
