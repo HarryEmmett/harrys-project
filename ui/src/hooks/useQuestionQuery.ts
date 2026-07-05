@@ -1,7 +1,8 @@
 import type { QuestionResponse } from '@harrys-project/shared/apiSchema';
 import { constants } from '@harrys-project/shared/constants';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { fetchQuestionData } from '../api/apiCalls';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { closeQuestion, fetchQuestionData } from '../api/apiCalls';
+import { updateQuestionInCache } from '../api/questionsCache';
 
 const { queryClientConfig } = constants.rest;
 
@@ -18,5 +19,11 @@ export const useQuestionQuery = (id: string) => {
       queryKey: [queryClientConfig.queryKeys.QUESTION_KEY, id],
     });
   };
-  return { questionQuery, invalidateQuestionQuery };
+
+  const closeQuestionMutation = useMutation({
+    mutationFn: () => closeQuestion(id),
+    onSuccess: (question) => updateQuestionInCache(queryClient, question),
+  });
+
+  return { questionQuery, invalidateQuestionQuery, closeQuestionMutation };
 };

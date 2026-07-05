@@ -5,7 +5,8 @@ import type {
 } from '@harrys-project/shared/apiSchema';
 import { constants } from '@harrys-project/shared/constants';
 
-const { QUESTIONS_KEY } = constants.rest.queryClientConfig.queryKeys;
+const { QUESTIONS_KEY, QUESTION_KEY } =
+  constants.rest.queryClientConfig.queryKeys;
 
 export const addQuestionToCache = (
   queryClient: QueryClient,
@@ -18,6 +19,10 @@ export const addQuestionToCache = (
       if (oldData.questions.some((q) => q.id === question.id)) return oldData;
       return { ...oldData, questions: [...oldData.questions, question] };
     },
+  );
+  queryClient.setQueryData<QuestionResponse>(
+    [QUESTION_KEY, question.id],
+    question,
   );
 };
 
@@ -37,6 +42,10 @@ export const updateQuestionInCache = (
           }
         : oldData,
   );
+  queryClient.setQueryData<QuestionResponse>(
+    [QUESTION_KEY, question.id],
+    question,
+  );
 };
 
 export const removeQuestionFromCache = (
@@ -53,4 +62,5 @@ export const removeQuestionFromCache = (
           }
         : oldData,
   );
+  queryClient.removeQueries({ queryKey: [QUESTION_KEY, id] });
 };

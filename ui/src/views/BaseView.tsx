@@ -1,10 +1,12 @@
 import Footer from '../components/Footer';
 import Header from '../components/Header';
 import FriendsPanel from '../components/FriendsPanel';
+import RoomSync from '../components/RoomSync';
 
 function BaseView({ children }: { children?: React.ReactNode }) {
   return (
     <>
+      <RoomSync />
       <section id="header" className="spacer">
         <Header />
       </section>

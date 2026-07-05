@@ -142,6 +142,20 @@ export class QuestionsService {
     return questionSchema.parse(toQuestionResponse(saved));
   }
 
+  // TODO(roadmap #5, identity/roles): restrict to the event host once roles exist.
+  async closeQuestion(id: string): Promise<QuestionResponse> {
+    const question = await this.questionRepo.findOneBy({ id });
+
+    if (!question) {
+      throw new NotFoundException(`Question with id "${id}" not found`);
+    }
+
+    question.answered = !question.answered;
+    const saved = await this.questionRepo.save(question);
+
+    return questionSchema.parse(toQuestionResponse(saved));
+  }
+
   async getQuestionChat(id: string): Promise<QuestionChatResponse> {
     const chatQuestions = await this.chatQuestionRepo.find({
       where: { question: { id } },

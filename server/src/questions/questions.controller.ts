@@ -73,6 +73,13 @@ export class QuestionsController {
     return question;
   }
 
+  @Patch(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id/close`)
+  async closeQuestion(@Param('id') id: string): Promise<QuestionResponse> {
+    const question = await this.questionsService.closeQuestion(id);
+    this.questionsGateway.broadcastQuestionUpdated(question);
+    return question;
+  }
+
   @Get(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id/chat`)
   getQuestionChat(@Param('id') id: string): Promise<QuestionChatResponse> {
     return this.questionsService.getQuestionChat(id);

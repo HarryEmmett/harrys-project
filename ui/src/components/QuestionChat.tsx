@@ -1,62 +1,47 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { ArrowBigUp, Send } from 'lucide-react';
-import type { ChatQuestionResponse } from '@harrys-project/shared/apiSchema';
 import { useQuestionChatQuery } from '../hooks/useQuestionChatQuery';
+import { useRoom } from '../hooks/useRoom';
 import ErrorView from '../views/ErrorView';
 
 type QuestionChatProps = {
   questionId: string;
 };
 
+// TODO(roadmap #5, identity/roles): replace with a persisted anonymous user name.
+const CURRENT_USER_NAME = 'You';
+
 const QuestionChat = ({ questionId }: QuestionChatProps) => {
-  const { questionChatQuery } = useQuestionChatQuery(questionId);
+  const {
+    questionChatQuery,
+    createChatQuestionMutation,
+    voteChatQuestionMutation,
+  } = useQuestionChatQuery(questionId);
   const { data, isLoading, isError } = questionChatQuery;
 
-  const [chatQuestions, setChatQuestions] = useState<ChatQuestionResponse[]>(
-    [],
-  );
   const [draft, setDraft] = useState('');
-  const nextChatIdRef = useRef(1);
-  const isInitializedRef = useRef(false);
 
-  useEffect(() => {
-    if (data && !isInitializedRef.current) {
-      setChatQuestions(data.chatQuestions);
-      nextChatIdRef.current = data.chatQuestions.length + 1;
-      isInitializedRef.current = true;
-    }
-  }, [data]);
+  useRoom(questionId);
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = draft.trim();
     if (!trimmed) return;
-    setChatQuestions((prev) => [
-      ...prev,
-      {
-        id: `c${nextChatIdRef.current++}`,
-        author: 'You',
-        content: trimmed,
-        votes: 0,
-      },
-    ]);
+    createChatQuestionMutation.mutate({
+      author: CURRENT_USER_NAME,
+      content: trimmed,
+    });
     setDraft('');
   };
 
   const handleUpvote = (id: string) => {
-    setChatQuestions((prev) =>
-      prev.map((question) =>
-        question.id === id
-          ? { ...question, votes: question.votes + 1 }
-          : question,
-      ),
-    );
+    voteChatQuestionMutation.mutate(id);
   };
 
   if (isError) return <ErrorView />;
   if (isLoading) return <p>Loading...</p>;
 
-  const sortedChatQuestions = [...chatQuestions].sort(
+  const sortedChatQuestions = [...(data?.chatQuestions ?? [])].sort(
     (a, b) => b.votes - a.votes,
   );
 

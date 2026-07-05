@@ -4,12 +4,15 @@ import {
   questionsResponseSchema,
   questionSchema,
   questionChatResponseSchema,
+  chatQuestionSchema,
   pageVisitsResponseSchema,
   type QuestionsResponse,
   type QuestionResponse,
   type QuestionChatResponse,
+  type ChatQuestionResponse,
   type PageVisitsResponse,
   type CreateQuestionRequest,
+  type CreateChatQuestionRequest,
 } from '@harrys-project/shared/apiSchema';
 
 const apiUrl =
@@ -73,4 +76,32 @@ export async function voteQuestion(
     { delta },
   );
   return questionSchema.parse(res.data);
+}
+
+export async function closeQuestion(id: string): Promise<QuestionResponse> {
+  const res = await axios.patch(
+    `${apiUrl}${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${id}/close`,
+  );
+  return questionSchema.parse(res.data);
+}
+
+export async function createChatQuestion(
+  questionId: string,
+  input: CreateChatQuestionRequest,
+): Promise<ChatQuestionResponse> {
+  const res = await axios.post(
+    `${apiUrl}${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${questionId}/chat`,
+    input,
+  );
+  return chatQuestionSchema.parse(res.data);
+}
+
+export async function voteChatQuestion(
+  questionId: string,
+  chatQuestionId: string,
+): Promise<ChatQuestionResponse> {
+  const res = await axios.patch(
+    `${apiUrl}${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${questionId}/chat/${chatQuestionId}/vote`,
+  );
+  return chatQuestionSchema.parse(res.data);
 }

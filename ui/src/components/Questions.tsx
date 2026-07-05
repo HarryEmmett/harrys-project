@@ -1,7 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
-import { useRoom } from '../hooks/useRoom';
 import QuestionCard from './QuestionCard';
 import CreateQuestionModal from './CreateQuestionModal';
 import ErrorView from '../views/ErrorView';
@@ -19,17 +18,6 @@ const Questions = () => {
   const { data, isLoading, isError } = questionsQuery;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const eventId = data?.event.id ?? '';
-  const { joinRoom, leaveRoom } = useRoom(eventId);
-
-  useEffect(() => {
-    if (!eventId) return;
-    joinRoom();
-    return () => leaveRoom();
-    // joinRoom/leaveRoom are recreated each render but only depend on eventId
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eventId]);
 
   const handleCreateQuestion = (content: string) => {
     createQuestionMutation.mutate({ userId: CURRENT_USER_ID, content });

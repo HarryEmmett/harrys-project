@@ -1,5 +1,8 @@
 import { constants } from '@harrys-project/shared/constants';
-import { questionSchema } from '@harrys-project/shared/apiSchema';
+import {
+  questionSchema,
+  chatQuestionSchema,
+} from '@harrys-project/shared/apiSchema';
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
@@ -8,6 +11,10 @@ import {
   removeQuestionFromCache,
   updateQuestionInCache,
 } from '../api/questionsCache';
+import {
+  addChatQuestionToCache,
+  updateChatQuestionInCache,
+} from '../api/chatQuestionsCache';
 
 export const useRoom = (roomId: string) => {
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -75,6 +82,36 @@ export const useRoom = (roomId: string) => {
       removeQuestionFromCache(queryClient, id);
     });
 
+    // Chat-question broadcasts are scoped to a room named after the question
+    // id (see questions.gateway.ts), so these only ever fire for a useRoom()
+    // instance whose roomId is that question's id (i.e. one that actually
+    // joined it via joinRoom()).
+    socket.on(
+      constants.ws.questions.CHAT_QUESTION_ADDED_EVENT,
+      (wsData: any) => {
+        const data = chatQuestionSchema.safeParse(wsData);
+
+        if (data.success) {
+          addChatQuestionToCache(queryClient, roomId, data.data);
+        } else {
+          console.log('Invalid chat question data received:', data.error);
+        }
+      },
+    );
+
+    socket.on(
+      constants.ws.questions.CHAT_QUESTION_UPDATED_EVENT,
+      (wsData: any) => {
+        const data = chatQuestionSchema.safeParse(wsData);
+
+        if (data.success) {
+          updateChatQuestionInCache(queryClient, roomId, data.data);
+        } else {
+          console.log('Invalid chat question data received:', data.error);
+        }
+      },
+    );
+
     return () => {
       socket.off(constants.ws.CONNECT_EVENT);
       socket.off('clientAck');
@@ -83,8 +120,25 @@ export const useRoom = (roomId: string) => {
       socket.off(constants.ws.questions.QUESTIONS_EMIT_EVENT);
       socket.off(constants.ws.questions.QUESTIONS_UPDATED_EVENT);
       socket.off(constants.ws.questions.QUESTIONS_DELETED_EVENT);
+      socket.off(constants.ws.questions.CHAT_QUESTION_ADDED_EVENT);
+      socket.off(constants.ws.questions.CHAT_QUESTION_UPDATED_EVENT);
     };
-  }, [queryClient, socket]);
+  }, [queryClient, roomId, socket]);
+
+  // Joins/leaves the room whenever BOTH the socket is connected AND roomId is
+  // set — not just on mount. Calling this from the caller's own effect keyed
+  // only on roomId is a race: roomId is often already truthy on first render
+  // (e.g. a route param), while the socket itself connects asynchronously a
+  // moment later, so the join would silently no-op and never get retried.
+  useEffect(() => {
+    if (!socket || !roomId) return;
+
+    socket.emit(constants.ws.questions.QUESTIONS_ROOM, roomId);
+
+    return () => {
+      socket.emit(constants.ws.questions.QUESTIONS_ROOM + '_leave', roomId);
+    };
+  }, [socket, roomId]);
 
   const postQuestion = () => {
     if (!socket) return;
@@ -98,15 +152,5 @@ export const useRoom = (roomId: string) => {
     });
   };
 
-  const joinRoom = () => {
-    if (!socket) return;
-    socket.emit(constants.ws.questions.QUESTIONS_ROOM, roomId);
-  };
-
-  const leaveRoom = () => {
-    if (!socket) return;
-    socket.emit(constants.ws.questions.QUESTIONS_ROOM + '_leave', roomId);
-  };
-
-  return { postQuestion, joinRoom, leaveRoom };
+  return { postQuestion };
 };
