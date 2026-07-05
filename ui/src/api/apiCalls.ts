@@ -9,6 +9,7 @@ import {
   type QuestionResponse,
   type QuestionChatResponse,
   type PageVisitsResponse,
+  type CreateQuestionRequest,
 } from '@harrys-project/shared/apiSchema';
 
 const apiUrl =
@@ -45,4 +46,31 @@ export async function fetchQuestionChatData(
     `${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${id}/chat`,
   );
   return questionChatResponseSchema.parse(data);
+}
+
+export async function createQuestion(
+  input: CreateQuestionRequest,
+): Promise<QuestionResponse> {
+  const res = await axios.post(
+    `${apiUrl}${constants.rest.endpoints.QUESTIONS_ENDPOINT}`,
+    input,
+  );
+  return questionSchema.parse(res.data);
+}
+
+export async function deleteQuestion(id: string): Promise<void> {
+  await axios.delete(
+    `${apiUrl}${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${id}`,
+  );
+}
+
+export async function voteQuestion(
+  id: string,
+  delta: 1 | -1,
+): Promise<QuestionResponse> {
+  const res = await axios.patch(
+    `${apiUrl}${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${id}/vote`,
+    { delta },
+  );
+  return questionSchema.parse(res.data);
 }

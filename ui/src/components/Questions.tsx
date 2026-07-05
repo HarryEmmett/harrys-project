@@ -1,58 +1,54 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import type { QuestionResponse } from '@harrys-project/shared/apiSchema';
 import { useQuestionsQuery } from '../hooks/useQuestionsQuery';
+import { useRoom } from '../hooks/useRoom';
 import QuestionCard from './QuestionCard';
 import CreateQuestionModal from './CreateQuestionModal';
 import ErrorView from '../views/ErrorView';
 
+// TODO(roadmap #5, identity/roles): replace with a persisted anonymous user id.
+const CURRENT_USER_ID = 'user_me';
+
 const Questions = () => {
-  const { questionsQuery } = useQuestionsQuery();
+  const {
+    questionsQuery,
+    createQuestionMutation,
+    deleteQuestionMutation,
+    voteQuestionMutation,
+  } = useQuestionsQuery();
   const { data, isLoading, isError } = questionsQuery;
 
-  const [questions, setQuestions] = useState<QuestionResponse[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const nextQuestionIdRef = useRef(1);
-  const isInitializedRef = useRef(false);
+
+  const eventId = data?.event.id ?? '';
+  const { joinRoom, leaveRoom } = useRoom(eventId);
 
   useEffect(() => {
-    if (data && !isInitializedRef.current) {
-      setQuestions(data.questions);
-      nextQuestionIdRef.current = data.questions.length + 1;
-      isInitializedRef.current = true;
-    }
-  }, [data]);
+    if (!eventId) return;
+    joinRoom();
+    return () => leaveRoom();
+    // joinRoom/leaveRoom are recreated each render but only depend on eventId
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventId]);
 
   const handleCreateQuestion = (content: string) => {
-    const newQuestion: QuestionResponse = {
-      id: `q${nextQuestionIdRef.current++}`,
-      userId: 'user_me',
-      content,
-      votes: 0,
-      answered: false,
-      createdAt: new Date().toISOString(),
-    };
-    setQuestions((prev) => [newQuestion, ...prev]);
+    createQuestionMutation.mutate({ userId: CURRENT_USER_ID, content });
   };
 
   const handleDeleteQuestion = (id: string) => {
-    setQuestions((prev) => prev.filter((question) => question.id !== id));
+    deleteQuestionMutation.mutate(id);
   };
 
   const handleVoteQuestion = (id: string, delta: 1 | -1) => {
-    setQuestions((prev) =>
-      prev.map((question) =>
-        question.id === id
-          ? { ...question, votes: question.votes + delta }
-          : question,
-      ),
-    );
+    voteQuestionMutation.mutate({ id, delta });
   };
 
   if (isError) return <ErrorView />;
   if (isLoading) return <p>Loading...</p>;
 
-  const sortedQuestions = [...questions].sort((a, b) => b.votes - a.votes);
+  const sortedQuestions = [...(data?.questions ?? [])].sort(
+    (a, b) => b.votes - a.votes,
+  );
 
   return (
     <div className="w-full p-2">

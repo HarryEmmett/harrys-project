@@ -1,18 +1,20 @@
 import { constants } from '@harrys-project/shared/constants';
-import {
-  questionSchema,
-  type QuestionsResponse,
-} from '@harrys-project/shared/apiSchema';
+import { questionSchema } from '@harrys-project/shared/apiSchema';
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
+import {
+  addQuestionToCache,
+  removeQuestionFromCache,
+  updateQuestionInCache,
+} from '../api/questionsCache';
 
 export const useRoom = (roomId: string) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    const newSocket = io('http://localhost:3000');
+    const newSocket = io('http://localhost:3000/questions');
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSocket(newSocket);
     return () => {
@@ -50,31 +52,39 @@ export const useRoom = (roomId: string) => {
 
     // broadcast new question to room
     socket.on(constants.ws.questions.QUESTIONS_EMIT_EVENT, (wsData: any) => {
-      console.log('Received new question:', wsData);
-
       const data = questionSchema.safeParse(wsData);
 
       if (data.success) {
-        queryClient.setQueryData<QuestionsResponse | undefined>(
-          [constants.rest.queryClientConfig.queryKeys.QUESTIONS_KEY],
-          (oldData) => {
-            return oldData
-              ? {
-                  ...oldData,
-                  questions: [...oldData.questions, data.data],
-                }
-              : oldData;
-          },
-        );
+        addQuestionToCache(queryClient, data.data);
       } else {
         console.log('Invalid question data received:', data.error);
       }
     });
 
+    socket.on(constants.ws.questions.QUESTIONS_UPDATED_EVENT, (wsData: any) => {
+      const data = questionSchema.safeParse(wsData);
+
+      if (data.success) {
+        updateQuestionInCache(queryClient, data.data);
+      } else {
+        console.log('Invalid question data received:', data.error);
+      }
+    });
+
+    socket.on(constants.ws.questions.QUESTIONS_DELETED_EVENT, (id: string) => {
+      removeQuestionFromCache(queryClient, id);
+    });
+
     return () => {
-      socket.disconnect();
+      socket.off(constants.ws.CONNECT_EVENT);
+      socket.off('clientAck');
+      socket.off(constants.ws.questions.QUESTIONS_ROOM);
+      socket.off(constants.ws.questions.QUESTIONS_ROOM + '_leave');
+      socket.off(constants.ws.questions.QUESTIONS_EMIT_EVENT);
+      socket.off(constants.ws.questions.QUESTIONS_UPDATED_EVENT);
+      socket.off(constants.ws.questions.QUESTIONS_DELETED_EVENT);
     };
-  }, [queryClient, roomId, socket]);
+  }, [queryClient, socket]);
 
   const postQuestion = () => {
     if (!socket) return;
