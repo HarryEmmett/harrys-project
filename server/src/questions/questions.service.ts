@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import fs from 'fs';
 import path from 'path';
 import {
@@ -7,142 +9,177 @@ import {
   QuestionResponse,
   questionSchema,
   QuestionChatResponse,
+  questionChatResponseSchema,
   ChatQuestionResponse,
+  chatQuestionSchema,
   PageVisitsResponse,
   pageVisitsResponseSchema,
   CreateQuestionRequest,
   CreateChatQuestionRequest,
 } from '@harrys-project/shared/apiSchema';
+import { EventEntity } from './entities/event.entity';
+import { ParticipantEntity } from './entities/participant.entity';
+import { QuestionEntity } from './entities/question.entity';
+import { ChatQuestionEntity } from './entities/chat-question.entity';
+
+const toQuestionResponse = (question: QuestionEntity): QuestionResponse => ({
+  id: question.id,
+  userId: question.userId,
+  content: question.content,
+  votes: question.votes,
+  answered: question.answered,
+  createdAt: question.createdAt.toISOString(),
+});
+
+const toChatQuestionResponse = (
+  chatQuestion: ChatQuestionEntity,
+): ChatQuestionResponse => ({
+  id: chatQuestion.id,
+  author: chatQuestion.author,
+  content: chatQuestion.content,
+  votes: chatQuestion.votes,
+});
 
 @Injectable()
 export class QuestionsService {
-  // In-memory store seeded from mock JSON on boot. This is the "real data
-  // layer" prerequisite from plan.md roadmap #1 — replace this whole class's
-  // internals with a TypeORM repository once the DB is wired up; the method
-  // signatures below can stay the same.
-  private event: QuestionsResponse['event'];
-  private participants: QuestionsResponse['participants'];
-  private questions: QuestionResponse[];
-  private chatQuestionsByQuestionId: Record<string, ChatQuestionResponse[]>;
+  constructor(
+    @InjectRepository(EventEntity)
+    private readonly eventRepo: Repository<EventEntity>,
+    @InjectRepository(ParticipantEntity)
+    private readonly participantRepo: Repository<ParticipantEntity>,
+    @InjectRepository(QuestionEntity)
+    private readonly questionRepo: Repository<QuestionEntity>,
+    @InjectRepository(ChatQuestionEntity)
+    private readonly chatQuestionRepo: Repository<ChatQuestionEntity>,
+  ) {}
 
-  constructor() {
-    const fileJson = fs.readFileSync(
-      path.join(process.cwd(), 'src', 'mockApiData', 'mockQuestionsData.json'),
-      'utf-8',
-    );
-    const seed = questionsResponseSchema.parse(JSON.parse(fileJson));
-    this.event = seed.event;
-    this.participants = seed.participants;
-    this.questions = seed.questions;
+  // Events & rooms (plan.md roadmap #2) aren't built yet — there's exactly
+  // one event in the DB (created by shared/scripts/seedDb.ts), so every
+  // question/participant lookup is scoped to that single event for now.
+  private async getCurrentEvent(): Promise<EventEntity> {
+    const event = await this.eventRepo.findOne({
+      where: {},
+      order: { createdAt: 'ASC' },
+    });
 
-    const chatFileJson = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        'src',
-        'mockApiData',
-        'mockQuestionChatsData.json',
-      ),
-      'utf-8',
-    );
-    this.chatQuestionsByQuestionId = JSON.parse(chatFileJson) as Record<
-      string,
-      ChatQuestionResponse[]
-    >;
+    if (!event) {
+      throw new NotFoundException(
+        'No event found — run "npm run db:seed" in shared/ to create one.',
+      );
+    }
+
+    return event;
   }
 
-  getQuestions(): QuestionsResponse {
+  async getQuestions(): Promise<QuestionsResponse> {
+    const event = await this.getCurrentEvent();
+    const [participants, questions] = await Promise.all([
+      this.participantRepo.find({ where: { event: { id: event.id } } }),
+      this.questionRepo.find({
+        where: { event: { id: event.id } },
+        order: { createdAt: 'ASC' },
+      }),
+    ]);
+
     return questionsResponseSchema.parse({
-      event: this.event,
-      participants: this.participants,
-      questions: this.questions,
+      event: {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        createdAt: event.createdAt.toISOString(),
+      },
+      participants: participants.map((participant) => ({
+        id: participant.id,
+        name: participant.name,
+      })),
+      questions: questions.map(toQuestionResponse),
     });
   }
 
-  getQuestionById(id: string): QuestionResponse {
-    const question = this.questions.find((question) => question.id === id);
+  async getQuestionById(id: string): Promise<QuestionResponse> {
+    const question = await this.questionRepo.findOneBy({ id });
 
     if (!question) {
       throw new NotFoundException(`Question with id "${id}" not found`);
     }
 
-    return questionSchema.parse(question);
+    return questionSchema.parse(toQuestionResponse(question));
   }
 
-  createQuestion(input: CreateQuestionRequest): QuestionResponse {
-    const question = questionSchema.parse({
-      id: `q${this.questions.length + 1}_${Date.now()}`,
+  async createQuestion(input: CreateQuestionRequest): Promise<QuestionResponse> {
+    const event = await this.getCurrentEvent();
+    const question = this.questionRepo.create({
       userId: input.userId,
       content: input.content,
       votes: 0,
       answered: false,
-      createdAt: new Date().toISOString(),
+      event,
     });
 
-    // DB: INSERT INTO questions (id, user_id, content, votes, answered, created_at) VALUES (...)
-    this.questions.push(question);
+    const saved = await this.questionRepo.save(question);
 
-    return question;
+    return questionSchema.parse(toQuestionResponse(saved));
   }
 
-  deleteQuestion(id: string): void {
-    const index = this.questions.findIndex((question) => question.id === id);
+  async deleteQuestion(id: string): Promise<void> {
+    const result = await this.questionRepo.delete(id);
 
-    if (index === -1) {
+    if (!result.affected) {
       throw new NotFoundException(`Question with id "${id}" not found`);
     }
-
-    // DB: DELETE FROM questions WHERE id = $1
-    this.questions.splice(index, 1);
   }
 
-  voteQuestion(id: string, delta: 1 | -1): QuestionResponse {
-    const question = this.questions.find((question) => question.id === id);
+  async voteQuestion(id: string, delta: 1 | -1): Promise<QuestionResponse> {
+    const question = await this.questionRepo.findOneBy({ id });
 
     if (!question) {
       throw new NotFoundException(`Question with id "${id}" not found`);
     }
 
-    // DB: UPDATE questions SET votes = votes + $1 WHERE id = $2
     question.votes += delta;
+    const saved = await this.questionRepo.save(question);
 
-    return questionSchema.parse(question);
+    return questionSchema.parse(toQuestionResponse(saved));
   }
 
-  getQuestionChat(id: string): QuestionChatResponse {
-    return {
-      chatQuestions: this.chatQuestionsByQuestionId[id] ?? [],
-    };
+  async getQuestionChat(id: string): Promise<QuestionChatResponse> {
+    const chatQuestions = await this.chatQuestionRepo.find({
+      where: { question: { id } },
+    });
+
+    return questionChatResponseSchema.parse({
+      chatQuestions: chatQuestions.map(toChatQuestionResponse),
+    });
   }
 
-  addChatQuestion(
+  async addChatQuestion(
     questionId: string,
     input: CreateChatQuestionRequest,
-  ): ChatQuestionResponse {
-    const chatQuestions = this.chatQuestionsByQuestionId[questionId] ?? [];
-    const chatQuestion: ChatQuestionResponse = {
-      id: `c${chatQuestions.length + 1}_${Date.now()}`,
+  ): Promise<ChatQuestionResponse> {
+    const question = await this.questionRepo.findOneBy({ id: questionId });
+
+    if (!question) {
+      throw new NotFoundException(`Question with id "${questionId}" not found`);
+    }
+
+    const chatQuestion = this.chatQuestionRepo.create({
       author: input.author,
       content: input.content,
       votes: 0,
-    };
+      question,
+    });
+    const saved = await this.chatQuestionRepo.save(chatQuestion);
 
-    // DB: INSERT INTO chat_questions (id, question_id, author, content, votes) VALUES (...)
-    this.chatQuestionsByQuestionId[questionId] = [
-      ...chatQuestions,
-      chatQuestion,
-    ];
-
-    return chatQuestion;
+    return chatQuestionSchema.parse(toChatQuestionResponse(saved));
   }
 
-  voteChatQuestion(
+  async voteChatQuestion(
     questionId: string,
     chatQuestionId: string,
-  ): ChatQuestionResponse {
-    const chatQuestions = this.chatQuestionsByQuestionId[questionId] ?? [];
-    const chatQuestion = chatQuestions.find(
-      (chatQuestion) => chatQuestion.id === chatQuestionId,
-    );
+  ): Promise<ChatQuestionResponse> {
+    const chatQuestion = await this.chatQuestionRepo.findOne({
+      where: { id: chatQuestionId, question: { id: questionId } },
+    });
 
     if (!chatQuestion) {
       throw new NotFoundException(
@@ -150,10 +187,10 @@ export class QuestionsService {
       );
     }
 
-    // DB: UPDATE chat_questions SET votes = votes + 1 WHERE id = $1 AND question_id = $2
     chatQuestion.votes += 1;
+    const saved = await this.chatQuestionRepo.save(chatQuestion);
 
-    return chatQuestion;
+    return chatQuestionSchema.parse(toChatQuestionResponse(saved));
   }
 
   getPageVisits(): PageVisitsResponse {

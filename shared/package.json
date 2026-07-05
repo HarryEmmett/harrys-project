@@ -17,10 +17,20 @@
   "files": ["dist"],
   "scripts": {
     "build": "tsc",
-    "watch": "tsc --watch"
+    "watch": "tsc --watch",
+    "db:seed": "tsx scripts/seedDb.ts",
+    "db:clear": "tsx scripts/clearDb.ts"
   },
   "dependencies": {
     "zod": "^4.3.6",
-    "typescript": "^6.0.2"
+    "typescript": "^6.0.2",
+    "pg": "^8.20.0"
+  },
+  "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "@types/node": "^24.12.0",
+    "@types/pg": "^8.11.6",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2"
   }
 }

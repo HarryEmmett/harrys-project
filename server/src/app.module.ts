@@ -1,4 +1,7 @@
+import { resolve } from 'node:path';
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { QuestionsModule } from './questions/questions.module';
 import { UserPresenceModule } from './userPresence/userPresence.module';
 
@@ -7,6 +10,24 @@ import { UserPresenceModule } from './userPresence/userPresence.module';
 // own separate services (a friends service, plus a separate auth service),
 // not as modules in here.
 @Module({
-  imports: [QuestionsModule, UserPresenceModule],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // main.ts runs from dist/src, so the repo-root .env is three levels up.
+      envFilePath: resolve(__dirname, '../../../.env'),
+    }),
+    TypeOrmModule.forRoot({
+      type: 'postgres',
+      host: process.env.DB_HOST ?? 'localhost',
+      port: Number(process.env.DB_PORT ?? 5432),
+      username: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      autoLoadEntities: true,
+      synchronize: true,
+    }),
+    QuestionsModule,
+    UserPresenceModule,
+  ],
 })
 export class AppModule {}

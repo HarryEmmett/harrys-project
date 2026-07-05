@@ -72,12 +72,12 @@ export class QuestionsGateway {
   // QuestionsService.createQuestion so there's a single place that persists,
   // and both end up broadcasting via broadcastQuestionCreated.
   @SubscribeMessage(constants.ws.questions.QUESTIONS_EMIT_EVENT)
-  handleQuestion(
+  async handleQuestion(
     @MessageBody(new ZodLoggingPipe(questionSchema))
     data: QuestionResponse,
     @ConnectedSocket() client: Socket,
   ) {
-    const created = this.questionsService.createQuestion({
+    const created = await this.questionsService.createQuestion({
       userId: data.userId,
       content: data.content,
     });

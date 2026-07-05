@@ -36,65 +36,65 @@ export class QuestionsController {
   ) {}
 
   @Get(constants.rest.endpoints.QUESTIONS_ENDPOINT)
-  getQuestions(): QuestionsResponse {
+  getQuestions(): Promise<QuestionsResponse> {
     return this.questionsService.getQuestions();
   }
 
   @Get(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id`)
-  getQuestionById(@Param('id') id: string): QuestionResponse {
+  getQuestionById(@Param('id') id: string): Promise<QuestionResponse> {
     return this.questionsService.getQuestionById(id);
   }
 
   @Post(constants.rest.endpoints.QUESTIONS_ENDPOINT)
-  createQuestion(
+  async createQuestion(
     @Body(new ZodLoggingPipe(createQuestionRequestSchema))
     body: CreateQuestionRequest,
-  ): QuestionResponse {
-    const question = this.questionsService.createQuestion(body);
+  ): Promise<QuestionResponse> {
+    const question = await this.questionsService.createQuestion(body);
     this.questionsGateway.broadcastQuestionCreated(question);
     return question;
   }
 
   @Delete(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id`)
   @HttpCode(204)
-  deleteQuestion(@Param('id') id: string): void {
-    this.questionsService.deleteQuestion(id);
+  async deleteQuestion(@Param('id') id: string): Promise<void> {
+    await this.questionsService.deleteQuestion(id);
     this.questionsGateway.broadcastQuestionDeleted(id);
   }
 
   @Patch(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id/vote`)
-  voteQuestion(
+  async voteQuestion(
     @Param('id') id: string,
     @Body(new ZodLoggingPipe(voteQuestionRequestSchema))
     body: VoteQuestionRequest,
-  ): QuestionResponse {
-    const question = this.questionsService.voteQuestion(id, body.delta);
+  ): Promise<QuestionResponse> {
+    const question = await this.questionsService.voteQuestion(id, body.delta);
     this.questionsGateway.broadcastQuestionUpdated(question);
     return question;
   }
 
   @Get(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id/chat`)
-  getQuestionChat(@Param('id') id: string): QuestionChatResponse {
+  getQuestionChat(@Param('id') id: string): Promise<QuestionChatResponse> {
     return this.questionsService.getQuestionChat(id);
   }
 
   @Post(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id/chat`)
-  addChatQuestion(
+  async addChatQuestion(
     @Param('id') id: string,
     @Body(new ZodLoggingPipe(createChatQuestionRequestSchema))
     body: CreateChatQuestionRequest,
-  ): ChatQuestionResponse {
-    const chatQuestion = this.questionsService.addChatQuestion(id, body);
+  ): Promise<ChatQuestionResponse> {
+    const chatQuestion = await this.questionsService.addChatQuestion(id, body);
     this.questionsGateway.broadcastChatQuestionCreated(id, chatQuestion);
     return chatQuestion;
   }
 
   @Patch(`${constants.rest.endpoints.QUESTIONS_ENDPOINT}/:id/chat/:chatId/vote`)
-  voteChatQuestion(
+  async voteChatQuestion(
     @Param('id') id: string,
     @Param('chatId') chatId: string,
-  ): ChatQuestionResponse {
-    const chatQuestion = this.questionsService.voteChatQuestion(id, chatId);
+  ): Promise<ChatQuestionResponse> {
+    const chatQuestion = await this.questionsService.voteChatQuestion(id, chatId);
     this.questionsGateway.broadcastChatQuestionUpdated(id, chatQuestion);
     return chatQuestion;
   }
