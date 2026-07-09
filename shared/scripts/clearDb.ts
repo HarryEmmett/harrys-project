@@ -20,8 +20,9 @@ async function clear() {
     // Children before parents — no CASCADE assumption, just explicit ordering.
     await client.query(`DELETE FROM "quiz_questions"`);
     await client.query(`DELETE FROM "games"`);
+    await client.query(`DELETE FROM "forum_posts"`);
 
-    console.log('Cleared all games and quiz questions.');
+    console.log('Cleared all games, quiz questions, and forum posts.');
   } finally {
     await client.end();
   }

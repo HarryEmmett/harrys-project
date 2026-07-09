@@ -37,16 +37,19 @@ Relations: has many `quiz_questions` (`ON DELETE CASCADE`).
 Multiple-choice questions belonging to a quiz-type `game`, rendered as
 read-only content on the game's detail page (`/game/:id`).
 
-| Column      | Type          | Constraints                       |
-| ----------- | ------------- | ----------------------------------- |
-| `id`        | `uuid`        | PK, default `uuid_generate_v4()`  |
-| `prompt`    | `text`        | not null                          |
-| `options`   | `text[]`      | not null — ordered MCQ option strings |
-| `createdAt` | `timestamptz` | not null, default `now()`         |
-| `gameId`    | `uuid`        | FK → `games.id`, `ON DELETE CASCADE` |
+| Column               | Type          | Constraints                       |
+| -------------------- | ------------- | ----------------------------------- |
+| `id`                 | `uuid`        | PK, default `uuid_generate_v4()`  |
+| `prompt`              | `text`        | not null                          |
+| `options`            | `text[]`      | not null — ordered MCQ option strings |
+| `correctOptionIndex` | `int`         | not null — index into `options`   |
+| `createdAt`          | `timestamptz` | not null, default `now()`         |
+| `gameId`             | `uuid`        | FK → `games.id`, `ON DELETE CASCADE` |
 
-No correctness/scoring column yet — picking an answer and tracking guesses is
-deliberately deferred to a later pass (see `shared/plan.md`).
+`correctOptionIndex` is internal-only — never exposed via `quizQuestionSchema`
+(same "not serialized to the client" treatment as `gameId`), otherwise the
+answer would leak before submission. It's only read server-side by
+`GamesService.submitQuizAnswers`.
 
 ## Relations at a glance
 
@@ -70,10 +73,21 @@ explicitly (`toGameResponse`/`toQuizQuestionResponse`) rather than serializing
 entities directly, since TypeORM relations would otherwise leak into the
 response and the zod `.strict()` parse would reject them.
 
+## Scoring
+
+`POST /games/:id/submit` (`GamesService.submitQuizAnswers`) is stateless — no
+attempt/result is persisted anywhere, and there's no per-user identity to tie
+it to yet. It takes `{ answers: { questionId, selectedOption }[] }`, scores
+every quiz question belonging to the game (an unanswered question just counts
+as incorrect), and returns `{ results: { questionId, correct }[], score,
+total }` in one response. No websocket broadcast — a score is only relevant
+to the person who submitted it.
+
 ## Seeding and resetting
 
 - `npm run db:seed` (from `shared/`) — creates one quiz game and 5 hardcoded,
-  readable trivia questions (`shared/scripts/seedDb.ts`, raw `pg`).
+  readable trivia questions with their correct answers
+  (`shared/scripts/seedDb.ts`, raw `pg`).
 - `npm run db:clear` (from `shared/`) — deletes all rows from both tables,
   children before parents (`shared/scripts/clearDb.ts`).
 - Both connect using `DB_HOST`/`DB_PORT`/`DB_USERNAME`/`DB_PASSWORD`/`DB_NAME`
@@ -85,5 +99,5 @@ response and the zod `.strict()` parse would reject them.
   No migrations yet; fine for now, not for production.
 - Single seeded quiz game, no create-game flow — games and quiz questions are
   seed-only for now (see `shared/plan.md`).
-- No per-question scoring/answer-tracking — quiz questions render read-only;
-  voting only happens at the whole-game level (`games.votes`).
+- Scoring is stateless (see above) — no per-user attempt history yet, so a
+  score can't be looked up later or attributed to anyone.

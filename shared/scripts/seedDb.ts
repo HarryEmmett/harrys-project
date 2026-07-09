@@ -10,14 +10,20 @@ import { Client } from 'pg';
 // Real, readable trivia content (not faker.lorem) — this is what actually
 // renders on the quiz detail page, so it needs to be meaningful to be useful
 // for manually testing the read-only display.
-const QUIZ_QUESTIONS: { prompt: string; options: string[] }[] = [
+const QUIZ_QUESTIONS: {
+  prompt: string;
+  options: string[];
+  correctOptionIndex: number;
+}[] = [
   {
     prompt: 'What is the capital of France?',
     options: ['Paris', 'Lyon', 'Marseille', 'Nice'],
+    correctOptionIndex: 0,
   },
   {
     prompt: 'Which planet is known as the Red Planet?',
     options: ['Venus', 'Mars', 'Jupiter', 'Saturn'],
+    correctOptionIndex: 1,
   },
   {
     prompt: 'Who wrote "Romeo and Juliet"?',
@@ -27,14 +33,30 @@ const QUIZ_QUESTIONS: { prompt: string; options: string[] }[] = [
       'Jane Austen',
       'Mark Twain',
     ],
+    correctOptionIndex: 1,
   },
   {
     prompt: 'What is the largest ocean on Earth?',
     options: ['Atlantic', 'Indian', 'Arctic', 'Pacific'],
+    correctOptionIndex: 3,
   },
   {
     prompt: 'How many continents are there?',
     options: ['5', '6', '7', '8'],
+    correctOptionIndex: 2,
+  },
+];
+
+const FORUM_POSTS: { author: string; title: string; content: string }[] = [
+  {
+    author: 'Harry Emmett',
+    title: 'Welcome to the forum',
+    content: 'Say hi, introduce yourself, or start a discussion about anything.',
+  },
+  {
+    author: 'Harry Emmett',
+    title: "What game should we add next?",
+    content: 'The quiz is up and running — what should the next game in the hub be?',
   },
 ];
 
@@ -62,17 +84,26 @@ async function seed() {
       ],
     );
 
-    for (const { prompt, options } of QUIZ_QUESTIONS) {
+    for (const { prompt, options, correctOptionIndex } of QUIZ_QUESTIONS) {
       await client.query(
-        `INSERT INTO "quiz_questions" ("id", "prompt", "options", "gameId")
-         VALUES ($1, $2, $3, $4)`,
-        [randomUUID(), prompt, options, gameId],
+        `INSERT INTO "quiz_questions" ("id", "prompt", "options", "correctOptionIndex", "gameId")
+         VALUES ($1, $2, $3, $4, $5)`,
+        [randomUUID(), prompt, options, correctOptionIndex, gameId],
       );
     }
 
     console.log(
       `Seeded game "${gameTitle}" (${gameId}) with ${QUIZ_QUESTIONS.length} quiz questions.`,
     );
+
+    for (const { author, title, content } of FORUM_POSTS) {
+      await client.query(
+        `INSERT INTO "forum_posts" ("id", "author", "title", "content") VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), author, title, content],
+      );
+    }
+
+    console.log(`Seeded ${FORUM_POSTS.length} forum posts.`);
   } finally {
     await client.end();
   }
