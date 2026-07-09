@@ -2,13 +2,13 @@ import { resolve } from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { QuestionsModule } from './questions/questions.module';
+import { GamesModule } from './games/games.module';
 import { UserPresenceModule } from './userPresence/userPresence.module';
 
-// This app is scoped to the questions microservice: Questions + presence
-// only. Friends and Messages were pulled out — they'll come back as their
-// own separate services (a friends service, plus a separate auth service),
-// not as modules in here.
+// This app is scoped to the games microservice: Games (hub + quiz) +
+// presence only. Friends and Messages were pulled out — they'll come back as
+// their own separate services (a friends service, plus a separate auth
+// service), not as modules in here.
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -26,7 +26,7 @@ import { UserPresenceModule } from './userPresence/userPresence.module';
       autoLoadEntities: true,
       synchronize: true,
     }),
-    QuestionsModule,
+    GamesModule,
     UserPresenceModule,
   ],
 })

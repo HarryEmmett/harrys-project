@@ -1,15 +1,13 @@
 export const constants = {
   rest: {
     endpoints: {
-      QUESTIONS_ENDPOINT: "/questions",
-      PAGE_VISITS_ENDPOINT: "/page-visits",
+      GAMES_ENDPOINT: "/games",
     },
     queryClientConfig: {
       queryKeys: {
-        QUESTIONS_KEY: "questionsKey",
-        QUESTION_KEY: "questionKey",
-        QUESTION_CHAT_KEY: "questionChatKey",
-        PAGE_VISITS_KEY: "pageVisitsKey",
+        GAMES_KEY: "gamesKey",
+        GAME_KEY: "gameKey",
+        GAME_QUESTIONS_KEY: "gameQuestionsKey",
         FRIENDS_KEY: "friendsKey",
         MESSAGES_KEY: "messagesKey",
       },
@@ -19,14 +17,8 @@ export const constants = {
     },
   },
   ws: {
-    questions: {
-      QUESTIONS_TOPIC: "questions-topic",
-      QUESTIONS_EMIT_EVENT: "questions-added",
-      QUESTIONS_UPDATED_EVENT: "questions-updated",
-      QUESTIONS_DELETED_EVENT: "questions-deleted",
-      QUESTIONS_ROOM: "question-room",
-      CHAT_QUESTION_ADDED_EVENT: "chat-question-added",
-      CHAT_QUESTION_UPDATED_EVENT: "chat-question-updated",
+    games: {
+      GAMES_UPDATED_EVENT: "games-updated",
     },
     presence: {
       ONLINE_COUNT_EVENT: "onlineCount:update",

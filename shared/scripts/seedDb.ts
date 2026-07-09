@@ -6,10 +6,37 @@ import { config as loadEnv } from 'dotenv';
 loadEnv({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../.env') });
 
 import { Client } from 'pg';
-import { faker } from '@faker-js/faker';
 
-const QUESTION_COUNT = Number(process.env.SEED_QUESTION_COUNT ?? 8);
-const PARTICIPANT_COUNT = Number(process.env.SEED_PARTICIPANT_COUNT ?? 5);
+// Real, readable trivia content (not faker.lorem) — this is what actually
+// renders on the quiz detail page, so it needs to be meaningful to be useful
+// for manually testing the read-only display.
+const QUIZ_QUESTIONS: { prompt: string; options: string[] }[] = [
+  {
+    prompt: 'What is the capital of France?',
+    options: ['Paris', 'Lyon', 'Marseille', 'Nice'],
+  },
+  {
+    prompt: 'Which planet is known as the Red Planet?',
+    options: ['Venus', 'Mars', 'Jupiter', 'Saturn'],
+  },
+  {
+    prompt: 'Who wrote "Romeo and Juliet"?',
+    options: [
+      'Charles Dickens',
+      'William Shakespeare',
+      'Jane Austen',
+      'Mark Twain',
+    ],
+  },
+  {
+    prompt: 'What is the largest ocean on Earth?',
+    options: ['Atlantic', 'Indian', 'Arctic', 'Pacific'],
+  },
+  {
+    prompt: 'How many continents are there?',
+    options: ['5', '6', '7', '8'],
+  },
+];
 
 async function seed() {
   const client = new Client({
@@ -22,59 +49,29 @@ async function seed() {
   await client.connect();
 
   try {
-    const eventId = randomUUID();
-    const eventTitle = faker.company.catchPhrase();
+    const gameId = randomUUID();
+    const gameTitle = 'General Knowledge Quiz';
     await client.query(
-      `INSERT INTO "events" ("id", "title", "description") VALUES ($1, $2, $3)`,
-      [eventId, eventTitle, faker.lorem.sentence()],
+      `INSERT INTO "games" ("id", "title", "description", "gameType", "votes") VALUES ($1, $2, $3, $4, $5)`,
+      [
+        gameId,
+        gameTitle,
+        'A short multiple-choice quiz to test your general knowledge.',
+        'quiz',
+        0,
+      ],
     );
 
-    const participants = Array.from({ length: PARTICIPANT_COUNT }, () => ({
-      id: randomUUID(),
-      name: faker.person.fullName(),
-    }));
-    for (const participant of participants) {
+    for (const { prompt, options } of QUIZ_QUESTIONS) {
       await client.query(
-        `INSERT INTO "participants" ("id", "name", "eventId") VALUES ($1, $2, $3)`,
-        [participant.id, participant.name, eventId],
+        `INSERT INTO "quiz_questions" ("id", "prompt", "options", "gameId")
+         VALUES ($1, $2, $3, $4)`,
+        [randomUUID(), prompt, options, gameId],
       );
-    }
-
-    for (let i = 0; i < QUESTION_COUNT; i++) {
-      const questionId = randomUUID();
-      const author = faker.helpers.arrayElement(participants);
-      await client.query(
-        `INSERT INTO "questions" ("id", "userId", "content", "votes", "answered", "eventId")
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          questionId,
-          author.id,
-          `${faker.lorem.sentence().replace(/\.$/, '')}?`,
-          faker.number.int({ min: 0, max: 15 }),
-          faker.datatype.boolean({ probability: 0.3 }),
-          eventId,
-        ],
-      );
-
-      const chatCount = faker.number.int({ min: 0, max: 3 });
-      for (let j = 0; j < chatCount; j++) {
-        const chatAuthor = faker.helpers.arrayElement(participants);
-        await client.query(
-          `INSERT INTO "chat_questions" ("id", "author", "content", "votes", "questionId")
-           VALUES ($1, $2, $3, $4, $5)`,
-          [
-            randomUUID(),
-            chatAuthor.name,
-            faker.lorem.sentence(),
-            faker.number.int({ min: 0, max: 5 }),
-            questionId,
-          ],
-        );
-      }
     }
 
     console.log(
-      `Seeded event "${eventTitle}" (${eventId}) with ${PARTICIPANT_COUNT} participants and ${QUESTION_COUNT} questions.`,
+      `Seeded game "${gameTitle}" (${gameId}) with ${QUIZ_QUESTIONS.length} quiz questions.`,
     );
   } finally {
     await client.end();

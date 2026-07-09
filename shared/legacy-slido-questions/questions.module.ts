@@ -1,3 +1,7 @@
+// Archived 2026-07-09: the original Slido Q&A feature, replaced by the
+// Games/Quiz hub. Not compiled (outside shared's tsconfig `include`), and its
+// relative imports (`../userPresence/...`, `../common/pipes/...`) no longer
+// resolve from this location — kept for reference only, do not wire back up.
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { QuestionsController } from './questions.controller';

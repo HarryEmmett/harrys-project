@@ -1,88 +1,47 @@
 import { z } from "zod";
 
-const participantSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-  })
-  .strict();
-
-export const questionSchema = z
-  .object({
-    id: z.string(),
-    userId: z.string(),
-    content: z.string(),
-    votes: z.number(),
-    answered: z.boolean(),
-    createdAt: z.string(),
-  })
-  .strict();
-
-const eventSchema = z
+export const gameSchema = z
   .object({
     id: z.string(),
     title: z.string(),
     description: z.string(),
+    // TODO: z.enum([...]) once a second game type exists.
+    gameType: z.literal("quiz"),
+    votes: z.number(),
     createdAt: z.string(),
   })
   .strict();
 
-export const questionsResponseSchema = z
+export const gamesResponseSchema = z
   .object({
-    event: eventSchema,
-    participants: z.array(participantSchema),
-    questions: z.array(questionSchema),
+    games: z.array(gameSchema),
   })
   .strict();
 
-export const pageVisitsResponseSchema = z
-  .object({
-    pageVisits: z.number(),
-  })
-  .strict();
-
-export const chatQuestionSchema = z
+export const quizQuestionSchema = z
   .object({
     id: z.string(),
-    author: z.string(),
-    content: z.string(),
-    votes: z.number(),
+    gameId: z.string(),
+    prompt: z.string(),
+    options: z.array(z.string()),
+    createdAt: z.string(),
   })
   .strict();
 
-export const questionChatResponseSchema = z
+export const gameQuestionsResponseSchema = z
   .object({
-    chatQuestions: z.array(chatQuestionSchema),
+    quizQuestions: z.array(quizQuestionSchema),
   })
   .strict();
 
-export const createQuestionRequestSchema = z
-  .object({
-    userId: z.string(),
-    content: z.string(),
-  })
-  .strict();
-
-export const voteQuestionRequestSchema = z
+export const voteGameRequestSchema = z
   .object({
     delta: z.union([z.literal(1), z.literal(-1)]),
   })
   .strict();
 
-export const createChatQuestionRequestSchema = z
-  .object({
-    author: z.string(),
-    content: z.string(),
-  })
-  .strict();
-
-export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
-export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
-export type QuestionResponse = z.infer<typeof questionSchema>;
-export type ChatQuestionResponse = z.infer<typeof chatQuestionSchema>;
-export type QuestionChatResponse = z.infer<typeof questionChatResponseSchema>;
-export type CreateQuestionRequest = z.infer<typeof createQuestionRequestSchema>;
-export type VoteQuestionRequest = z.infer<typeof voteQuestionRequestSchema>;
-export type CreateChatQuestionRequest = z.infer<
-  typeof createChatQuestionRequestSchema
->;
+export type GameResponse = z.infer<typeof gameSchema>;
+export type GamesResponse = z.infer<typeof gamesResponseSchema>;
+export type QuizQuestionResponse = z.infer<typeof quizQuestionSchema>;
+export type GameQuestionsResponse = z.infer<typeof gameQuestionsResponseSchema>;
+export type VoteGameRequest = z.infer<typeof voteGameRequestSchema>;

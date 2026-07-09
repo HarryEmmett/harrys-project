@@ -1,54 +1,58 @@
-# Slido Clone — Progress & Planth the current-state summary, known bugs, and the 7-phase roadmap we discussed. Let me know when you want to start on a
+# Game Hub — Progress & Roadmap
+
+The app was a "Slido clone" (live Q&A). It's now becoming a Discord-style hub
+where users can play games, solo or with friends. The old Slido feature was
+retired and archived to `shared/legacy-slido-questions/` (its former roadmap
+doc is there too, as `slido-plan.md`) — the messaging/friends sidebar remains
+a UI-only placeholder for a separate future service, untouched by this work.
 
 ## Current state
 
 ### Backend (NestJS)
-- `QuestionsModule`: REST GETs for `/questions`, `/page-visits`, `/likes` — all reading static mock JSON off disk on every request. No writes, no DB.
-- `QuestionsGateway` (`/questions` namespace): join/leave room, and a `questions-added` handler that just re-broadcasts to the room. It never persists 
-the question anywhere — the mock JSON file backing the REST endpoint is untouched.────────────────────────────────────────────────────────────────────────────
-- `UserPresenceModule`: in-memory `Map<namespace, count>`, tracked per-socket-namespace, wired into both `/presence` and `/questions` gateways.
-- `eventSchema` exists in the shared schema but isn't used anywhere — there's no concept of a specific event/room with its own data yet; everything is 
-one global mock dataset.
+- `GamesModule` (`server/src/games/`): Postgres/TypeORM-backed. `GET /games`,
+  `GET /games/:id`, `GET /games/:id/questions`, `PATCH /games/:id/vote`.
+  No create/delete — games and their quiz questions are seed-only.
+- `GamesGateway` (`/games` namespace): flat global broadcast of
+  `games-updated` on vote. No rooms/join-leave — there's no per-question
+  chat/reply feature and no create flow, so nothing needs scoping.
+- `UserPresenceModule`: unchanged, still a simple cross-namespace online
+  count.
 
 ### Frontend
-- Router has `/`, `/question/$id`, `/message/$id` — the latter two are stub placeholder pages, not wired to anything.
-- `useQuestionsQuery`/`useLikesQuery`/`usePageVisitsQuery` pull the static mock data via react-query.
-- `useRoom` connects to `/questions`, joins a hardcoded room, and `postQuestion` sends a hardcoded fixed payload (no text input yet).
-- `useOnlineCount` only opens a socket to `/presence`, but also registers a listener for `onlineQuestionsCount:update` — that event is only ever emitted
-on the `/questions` namespace, so that handler will never fire.
-- `Questions.tsx` keys list items with `q.id + Math.random()` (with an eslint-disable) — forces a remount every render; should just be `q.id`.
+- `/` (`GameHub`) renders a tile grid from `GET /games`, sorted by votes,
+  each tile upvotable/downvotable in place.
+- `/game/:id` (`QuizDetail`) shows the game's quiz questions with their
+  multiple-choice options as **read-only** content — no answer selection,
+  no scoring yet.
+- `/message/:id`, `/profile/:id`, and the `FriendsPanel` sidebar are
+  untouched mock-data placeholders (see `shared/friends-messages-service-plan.md`).
 
-**Summary:** the plumbing works (REST + shared zod schema + websocket round trip) but almost none of the actual Slido feature set exists yet, and there
-'s no real data layer — new questions only live in whichever connected clients' local react-query cache happened to receive the broadcast; a refresh or
-a new joiner loses them.
-
-## Known bugs to fix
-- [ ] `useOnlineCount` connects only to `/presence` but listens for a `/questions`-only event (`onlineQuestionsCount:update`) — dead listener.
-- [ ] `Questions.tsx` list key uses `q.id + Math.random()` — remove the `Math.random()`, just use `q.id`.
-- [ ] Websocket-posted questions are never persisted server-side — only broadcast to currently connected room members.
+## Known simplifications
+- Exactly one game exists today (a general-knowledge quiz), seeded via
+  `shared/scripts/seedDb.ts`. The hub grid is data-driven (not hardcoded to
+  one tile) so more games can be added later without a layout change.
+- Voting is whole-game only (`games.votes`) — there's no per-question vote or
+  answer tracking.
+- No identity/session concept — same as the old Slido app, everyone sees one
+  shared, live-updating list.
 
 ## Roadmap
 
-### 1. Real data layer
-- Replace static-JSON reads with an in-memory `EventsStore`/`QuestionsStore` service (per-event, keyed by room/event id) that the gateway actually writes
-to and the REST controller reads from. Prerequisite for everything else. DB (SQLite/Postgres + Prisma) can come later once the shape is proven.
+### 1. Hub + one read-only quiz (this pass)
+Retire Slido, ship the game hub UI, one seeded quiz game with read-only
+multiple-choice questions, whole-game upvoting. Done.
 
-### 2. Events & rooms
-- Use the existing `eventSchema`: endpoint to create an event, generates a room/join code; `/question/$id` route becomes the real per-event view instead
-of a stub.
+### 2. Per-question guessing/scoring
+Let a user pick an answer per quiz question; track/tally guesses; decide
+whether questions need a "correct answer" column or whether this stays
+opinion-poll-style (most popular answer, no right/wrong).
 
-### 3. Questions feature complete
-- Real submit form (replace hardcoded payload), upvote, mark-answered (host-only), sort by votes, full-list sync on join (not just appends).
+### 3. Additional game types
+Use the `games.gameType` discriminator to add a second game kind to the hub;
+figure out what part of the `GamesService`/`GamesGateway` layer generalizes
+vs. what needs a per-type sub-module.
 
-### 4. Presence cleanup
-- Consolidate `/presence` vs `/questions` online-count logic (currently split across two gateways/namespaces in a way that half-fires), fix the `useOnlin
-eCount` namespace mismatch bug.
-
-### 5. Identity/roles
-- Anonymous user id persisted client-side (localStorage), host vs attendee distinction for who can create events / mark answered.
-
-### 6. Polish
-- Join-by-link/code UI, styling pass, remove the `Math.random()` key hack.
-
-### 7. Tests + real DB
-- Add test coverage once behavior is settled, then swap the in-memory store for a real DB.
+### 4. Solo-or-with-friends
+The long-term vision: invite friends into a specific game session once the
+Friends/Messages service (see `shared/friends-messages-service-plan.md`) is
+real. Needs an actual session/room concept — deliberately not built yet.
