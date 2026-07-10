@@ -1,9 +1,26 @@
 # Friends & Messages Service — Implementation Plan
 
-Scope: a separate microservice from the questions-service (this repo's `server/`)
-and the future auth-service. Owns Friends (add/list/remove) and Messages
-(per-conversation chat). Structure below is a starting map, not gospel —
-change it as you build.
+Scope: a separate microservice from the games-service (this repo's `server/`)
+and the future auth-service. Owns Friends (add/list/remove), Messages
+(per-conversation live chat), and Profiles (see below). Structure below is a
+starting map, not gospel — change it as you build.
+
+> Note: `server/` has since pivoted from "questions-service" (Slido) to the
+> games-service (game hub + quizzes + forums). References below to the
+> "questions-service" / `QuestionsGateway` describe patterns that now live in
+> `GamesModule`/`GamesGateway` — the layering rules are unchanged. See
+> `shared/plan.md` for the overall roadmap; this service is phase 4 there.
+
+## Profiles live here (for now)
+
+Decision (2026-07-10): profiles are a `ProfilesModule` **inside** this
+service, not a third microservice. Profile data (name, email, bio, online
+flag) is small and its only consumers are the friends list and the profile
+page — the same service that owns friends. Give it its own tables and routes
+(`GET/PATCH /profiles/:id`) so there's a clean seam to extract it later
+(likely into/alongside the auth-service) if it grows real weight — avatars,
+settings, presence preferences. A third deployable today is operational cost
+plus cross-service joins for no benefit.
 
 ## Why this is split out
 
@@ -125,12 +142,17 @@ Own Postgres schema/tables (`Friend`, `Message`) via TypeORM — a real
 microservice split should mean this service owns its own data, not shared
 tables with the questions-service.
 
-## Open questions to resolve before building
+## Open questions — resolved (2026-07-10, see shared/plan.md phase 4)
 
-- [ ] Friend "add" semantics: instant add vs. request/accept
-- [ ] Message identity: needs `senderId` from auth-service, not a
-      client-supplied `'me'/'them'` flag
-- [ ] 1:1 only, or generic `conversationId` to allow group chat later
-- [ ] Does this service run its own `/friends` and `/messages` gateways
-      (separate socket.io server on its own port), while `/presence` stays
-      solely owned by questions-service per the design above?
+- [x] Friend "add" semantics: **instant add for v1** — there's no auth to
+      gate a request/accept flow on. Revisit request/accept after the
+      auth-service exists.
+- [x] Message identity: **client-generated persistent id** (localStorage)
+      as `senderId` until auth exists — explicitly temporary, swapped for
+      the JWT subject when the auth-service lands. Never `'me'/'them'`.
+- [x] Conversations: **use `conversationId` from day one** — cheap now,
+      enables group chat later without a data migration.
+- [x] Gateways: **yes** — this service runs its own socket.io server (own
+      port) for `/messages` (and `/friends` notifications), while
+      `/presence` stays solely owned by the games-service, aggregating via
+      Redis per the design above.
