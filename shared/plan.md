@@ -240,6 +240,60 @@ Playwright smoke job when it exists. Nothing exotic.
 - **GraphQL** — the zod-typed REST contract in `shared/` already gives
   end-to-end types; a second query language would duplicate it.
 
+## Where games live (and keeping the UI from bloating)
+
+Two separate questions: where a game's *logic* runs, and where its *code* is
+packaged.
+
+### Logic: split by trust, not by habit
+- **Catalog is always backend.** Every game — however client-side — gets a
+  `games` row (title, description, `gameType`, votes) so it's a hub tile.
+- **Content is backend when it's secret or shared.** Quiz questions live in
+  Postgres because `correctOptionIndex` must never reach the client (hence
+  server-side scoring in `POST /games/:id/submit`). A snake/memory-style
+  game has no secret content — its "content" is just code.
+- **Solo/casual games run entirely in the UI** and send small result
+  payloads ("finished, score 42") to a per-type endpoint. Cheap, no latency
+  concerns.
+- **Anything competitive or shared is server-authoritative** — a
+  client-submitted score is forgeable with a single `curl`. Leaderboards,
+  rewards, and phase-6 multiplayer sessions mean: server owns rules/state
+  (rooms on the `/games` namespace), clients send *inputs*, server
+  broadcasts resulting state.
+
+Rule of thumb: **the client sends what the user did; the server decides what
+it means** — whenever the meaning matters to anyone else. Until auth
+(phase 5), client-reported solo scores are fine but explicitly untrusted.
+
+### Packaging: a ladder, climbed per game as needed
+1. **Lazy-loaded feature folders (start here).** Each game in
+   `ui/src/features/games/<gameType>/`, mounted via
+   `React.lazy(() => import(...))` — Vite chunk-splits automatically, so a
+   game's code only downloads when opened. The shell bundle stays flat no
+   matter how many games exist. One line of ceremony per game.
+2. **Workspace packages.** Once npm workspaces are formalized, a game that
+   pulls in heavy deps (physics/game engine) becomes its own package
+   (`packages/games/<name>`) so those deps stay quarantined. Same runtime
+   behavior as rung 1.
+3. **Iframe + postMessage SDK (the real games-platform answer).** How
+   Discord Activities / Facebook Instant Games / Poki work: each game is a
+   self-contained static bundle (any tech — Phaser, Unity WebGL, Godot) on
+   a CDN, loaded in a sandboxed `<iframe>`, talking to the host via a tiny
+   SDK (`ready`, `finish(result)`, `getSession()`). The `games` row grows an
+   `entryUrl`; games deploy independently and the shell never grows. Adopt
+   only when a game outgrows the React bundle (real engine, or third-party
+   games).
+4. **Module federation / micro-frontends — not for this project.** It exists
+   so multiple *teams* can release independently inside one seamless UI;
+   for one developer it's configuration pain with no payoff over rung 3.
+
+Cheap move now that keeps every door open: define a small `GameSDK`
+interface (`mount(el, context)` / `onFinish(result)`) and make even in-repo
+games talk to the shell only through it. A game's home (bundle chunk →
+package → CDN iframe) then becomes a per-game packaging decision, not a
+rewrite, and `gameType` naturally evolves into a manifest
+(`kind: 'builtin' | 'embedded'` + `entryUrl`).
+
 ### Decision: profile service
 Recommendation: **don't make profiles a third service now.** Profile data
 (name, email, bio, online flag) is small, and its only consumers are the
