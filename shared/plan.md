@@ -156,6 +156,90 @@ Principles:
   gateway) only when auth lands and cross-cutting concerns (token refresh,
   rate limiting) appear.
 
+## What's missing → technology choices
+
+Everything the target architecture needs that doesn't exist yet, with a
+concrete pick for each. Bias: boring, already-in-the-stack tools (NestJS,
+Postgres, socket.io, zod) over new moving parts; each pick notes the roadmap
+phase that forces it.
+
+### Redis — presence, pub/sub, and cross-service cache (phase 4, adopt earlier if useful)
+The one genuinely new piece of infrastructure, and it covers three jobs:
+- **Cross-service presence** (required): per-service Redis *sets* of live
+  socket ids + a `presence:changed` pub/sub channel, aggregated by the
+  games-service which keeps sole ownership of the `/presence` namespace —
+  the design already in `friends-messages-service-plan.md`. `ioredis` is
+  already a `server/` dependency; reuse it in the messaging service.
+- **Cache across microservices**: `@nestjs/cache-manager` with a Redis store
+  in each service for hot, shared-by-everyone reads — the game list, forum
+  post list, resolved profiles — invalidated on write via the same pub/sub
+  channels. One rule: Redis cache is a *per-service private optimization*,
+  not a data-sharing backdoor. If service B needs service A's data, it calls
+  A's REST API (and may cache the response); it never reads A's cache keys
+  or tables directly, otherwise the cache becomes an undocumented contract.
+- **Socket.io horizontal scaling** (later, only if a service runs >1
+  instance): `@socket.io/redis-adapter` so room broadcasts reach sockets
+  connected to other instances. Not needed at one instance per service —
+  but it's the same Redis, so the path is already paved.
+
+### Messaging service runtime (phase 4)
+Same stack as `server/`: NestJS + socket.io + TypeORM/Postgres, own schema.
+Consistency beats novelty here — the layering rules, zod pipes, and gateway
+patterns transfer verbatim. Formalize the repo as **npm workspaces**
+(`server`, `ui`, `shared`, `services/messaging`) to replace the ad-hoc
+symlink; same mechanism, declared properly. Turborepo/Nx only if task
+orchestration ever actually hurts.
+
+### Auth (phase 5)
+Self-built NestJS auth-service: `@nestjs/passport` + `passport-jwt`,
+`argon2` password hashing, short-lived access token + refresh token.
+Sockets authenticate via the JWT in the socket.io handshake (`auth` payload),
+validated in a gateway guard. Each service verifies JWTs locally with the
+shared public key (RS256) — no per-request call to the auth-service. A
+managed provider (Clerk/Auth0/Supabase) is the faster alternative if
+building auth stops being interesting; the JWT-verification seam in the
+other services is identical either way, so this choice can be deferred.
+
+### Database migrations (phase 4 at the latest, ideally phase 0/1)
+TypeORM migrations (`migration:generate`/`migration:run`) replacing
+`synchronize: true`. Non-negotiable once two services own separate schemas —
+`synchronize` + multiple deployables is how tables get silently mangled.
+Seed/clear scripts stay raw `pg`, per the `schema.md` rationale.
+
+### Local dev orchestration (any time, cheap win)
+`docker-compose.yml` at the repo root: Postgres + Redis + (eventually) both
+services, plus a committed `.env.example`. Kills the "works on my machine"
+setup and is a prerequisite for onboarding anyone else — right now the DB is
+hand-configured and `.env` was committed to compensate (see bug list).
+
+### Abuse control (phase 2, when writes open up)
+`@nestjs/throttler` on write endpoints — votes today are unlimited and
+anonymous; forum posts/replies (phase 2) and messages (phase 4) are
+free-text writes with no identity behind them. Per-IP throttling is the only
+lever until auth lands, then per-user limits replace it.
+
+### Testing (start phase 1, grow with each phase)
+- Services: Jest + `supertest` for controller/e2e tests (Nest's default
+  harness), against a docker-compose Postgres.
+- UI: Vitest + React Testing Library (Vite-native, so no extra config).
+- Cross-service smoke (once messaging exists): a small Playwright suite —
+  the browser is already provisioned in CI-like environments — covering
+  vote sync and message delivery end-to-end.
+
+### CI (any time)
+GitHub Actions: lint + typecheck + tests per workspace on PR; add the
+Playwright smoke job when it exists. Nothing exotic.
+
+### Deliberately NOT adopting yet
+- **Kafka/RabbitMQ** — Redis pub/sub covers presence + cache invalidation at
+  this scale; a broker earns its place only when events need durable replay
+  or consumer groups.
+- **API gateway / BFF** — two services, one SPA, env-var URLs suffice;
+  revisit with auth (token refresh, rate limiting in one place).
+- **Kubernetes** — docker-compose until there's more than one machine.
+- **GraphQL** — the zod-typed REST contract in `shared/` already gives
+  end-to-end types; a second query language would duplicate it.
+
 ### Decision: profile service
 Recommendation: **don't make profiles a third service now.** Profile data
 (name, email, bio, online flag) is small, and its only consumers are the
