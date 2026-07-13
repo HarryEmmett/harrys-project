@@ -20,7 +20,15 @@ async function clear() {
     // Children before parents — no CASCADE assumption, just explicit ordering.
     await client.query(`DELETE FROM "quiz_questions"`);
     await client.query(`DELETE FROM "games"`);
-    await client.query(`DELETE FROM "forum_posts"`);
+
+    // The forum_posts table only exists once the ForumModule lands (plan.md
+    // roadmap item 2) — skip it until then instead of crashing.
+    const forumTable = await client.query(
+      `SELECT to_regclass('forum_posts') IS NOT NULL AS exists`,
+    );
+    if (forumTable.rows[0].exists) {
+      await client.query(`DELETE FROM "forum_posts"`);
+    }
 
     console.log('Cleared all games, quiz questions, and forum posts.');
   } finally {

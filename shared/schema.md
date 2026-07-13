@@ -34,8 +34,8 @@ Relations: has many `quiz_questions` (`ON DELETE CASCADE`).
 
 ### `quiz_questions`
 
-Multiple-choice questions belonging to a quiz-type `game`, rendered as
-read-only content on the game's detail page (`/game/:id`).
+Multiple-choice questions belonging to a quiz-type `game`, played on the
+game's detail page (`/game/:id`) and scored via `POST /games/:id/submit`.
 
 | Column               | Type          | Constraints                       |
 | -------------------- | ------------- | ----------------------------------- |
@@ -63,10 +63,10 @@ The zod schemas in `shared/apiSchema.ts` are the wire format the frontend and
 backend agree on — they're a subset of the entity columns (internal-only
 columns like `gameId` foreign keys are never serialized back to the client):
 
-| Zod schema (`apiSchema.ts`) | Backed by entity      | Fields *not* exposed |
-| ---------------------------- | ---------------------- | --------------------- |
+| Zod schema (`apiSchema.ts`) | Backed by entity      | Fields *not* exposed  |
+| ---------------------------- | ---------------------- | ---------------------- |
 | `gameSchema`                  | `GameEntity`            | —                      |
-| `quizQuestionSchema`          | `QuizQuestionEntity`    | —                      |
+| `quizQuestionSchema`          | `QuizQuestionEntity`    | `correctOptionIndex`   |
 
 `GamesService` (`server/src/games/games.service.ts`) does this mapping
 explicitly (`toGameResponse`/`toQuizQuestionResponse`) rather than serializing

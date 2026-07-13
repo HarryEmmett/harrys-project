@@ -4,9 +4,12 @@ import {
   gamesResponseSchema,
   gameSchema,
   gameQuestionsResponseSchema,
+  submitQuizAnswersResponseSchema,
   type GamesResponse,
   type GameResponse,
   type GameQuestionsResponse,
+  type SubmitQuizAnswersRequest,
+  type SubmitQuizAnswersResponse,
 } from '@harrys-project/shared/apiSchema';
 
 export const apiUrl =
@@ -14,9 +17,7 @@ export const apiUrl =
 
 const fetchData = async (endpoint: string): Promise<unknown> => {
   const res = await axios.get(`${apiUrl}${endpoint}`);
-  if (res.status !== 200) throw new Error('Failed to fetch mock data');
-  const data = res.data as unknown;
-  return data;
+  return res.data as unknown;
 };
 
 export async function fetchGamesData(): Promise<GamesResponse> {
@@ -49,4 +50,15 @@ export async function voteGame(
     { delta },
   );
   return gameSchema.parse(res.data);
+}
+
+export async function submitQuizAnswers(
+  id: string,
+  request: SubmitQuizAnswersRequest,
+): Promise<SubmitQuizAnswersResponse> {
+  const res = await axios.post(
+    `${apiUrl}${constants.rest.endpoints.GAMES_ENDPOINT}/${id}/submit`,
+    request,
+  );
+  return submitQuizAnswersResponseSchema.parse(res.data);
 }

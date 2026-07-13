@@ -96,14 +96,22 @@ async function seed() {
       `Seeded game "${gameTitle}" (${gameId}) with ${QUIZ_QUESTIONS.length} quiz questions.`,
     );
 
-    for (const { author, title, content } of FORUM_POSTS) {
-      await client.query(
-        `INSERT INTO "forum_posts" ("id", "author", "title", "content") VALUES ($1, $2, $3, $4)`,
-        [randomUUID(), author, title, content],
-      );
+    // The forum_posts table only exists once the ForumModule lands (plan.md
+    // roadmap item 2) — skip forum seeding until then instead of crashing.
+    const forumTable = await client.query(
+      `SELECT to_regclass('forum_posts') IS NOT NULL AS exists`,
+    );
+    if (forumTable.rows[0].exists) {
+      for (const { author, title, content } of FORUM_POSTS) {
+        await client.query(
+          `INSERT INTO "forum_posts" ("id", "author", "title", "content") VALUES ($1, $2, $3, $4)`,
+          [randomUUID(), author, title, content],
+        );
+      }
+      console.log(`Seeded ${FORUM_POSTS.length} forum posts.`);
+    } else {
+      console.log('Skipped forum posts (forum_posts table does not exist yet).');
     }
-
-    console.log(`Seeded ${FORUM_POSTS.length} forum posts.`);
   } finally {
     await client.end();
   }

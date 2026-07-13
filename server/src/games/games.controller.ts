@@ -3,12 +3,15 @@ import type {
   GameResponse,
   GameQuestionsResponse,
 } from '@harrys-project/shared/apiSchema';
+import type { SubmitQuizAnswersResponse } from '@harrys-project/shared/apiSchema';
 import {
   voteGameRequestSchema,
   type VoteGameRequest,
+  submitQuizAnswersRequestSchema,
+  type SubmitQuizAnswersRequest,
 } from '@harrys-project/shared/apiSchema';
 import { constants } from '@harrys-project/shared/constants';
-import { Body, Controller, Get, Param, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post } from '@nestjs/common';
 import { GamesService } from './games.service';
 import { GamesGateway } from './games.gateway';
 import { ZodLoggingPipe } from '../common/pipes/zod-logging.pipe';
@@ -44,5 +47,15 @@ export class GamesController {
     const game = await this.gamesService.voteGame(id, body.delta);
     this.gamesGateway.broadcastGameUpdated(game);
     return game;
+  }
+
+  // No broadcast — a score is only relevant to the person who submitted it.
+  @Post(`${constants.rest.endpoints.GAMES_ENDPOINT}/:id/submit`)
+  submitQuizAnswers(
+    @Param('id') id: string,
+    @Body(new ZodLoggingPipe(submitQuizAnswersRequestSchema))
+    body: SubmitQuizAnswersRequest,
+  ): Promise<SubmitQuizAnswersResponse> {
+    return this.gamesService.submitQuizAnswers(id, body);
   }
 }

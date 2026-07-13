@@ -23,6 +23,8 @@ export const useGamesQuery = () => {
     mutationFn: ({ id, delta }: { id: string; delta: 1 | -1 }) =>
       voteGame(id, delta),
     onSuccess: (game) => updateGameInCache(queryClient, game),
+    // Re-sync with the server on failure so the UI never sits on stale votes.
+    onError: () => invalidateGamesQuery(),
   });
 
   return { gamesQuery, invalidateGamesQuery, voteGameMutation };

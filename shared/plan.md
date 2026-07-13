@@ -22,9 +22,10 @@ real identity anywhere.
 - **No forum module exists**, even though `shared/apiSchema.ts` already has
   forum post/reply schemas, `shared/constants.ts` has `FORUM_POSTS_ENDPOINT`
   + forum query keys, and the seed script tries to insert forum posts.
-- **No quiz-submit endpoint exists**, even though `shared/apiSchema.ts` has
-  `submitQuizAnswers*` schemas and `shared/schema.md` documents
-  `POST /games/:id/submit` and a `correctOptionIndex` column as if built.
+- ~~No quiz-submit endpoint exists~~ **Done (2026-07-13):**
+  `POST /games/:id/submit` and the `correctOptionIndex` column are
+  implemented; `/game/:id` is a playable quiz with answer selection and a
+  score screen (roadmap item 1).
 
 ### Frontend (`ui/`, React + TanStack Router/Query)
 - `/` game hub grid (live vote sync via socket → react-query cache), and
@@ -62,11 +63,9 @@ Ordered roughly by severity.
 - [ ] **`useOnlineCount` hardcodes `http://localhost:3000/presence`** instead
   of using `apiUrl` (`VITE_API_URL`) like the games socket does — presence
   silently breaks on any non-local deployment.
-- [ ] **Vote lost-update race.** `GamesService.voteGame` does
-  read → `votes += delta` → save. Two concurrent votes read the same row and
-  one increment is lost. Use an atomic
-  `gameRepo.increment({ id }, 'votes', delta)` (then re-fetch for the
-  response/broadcast).
+- [x] **Vote lost-update race.** Fixed (2026-07-13): `voteGame` now uses
+  atomic `gameRepo.increment({ id }, 'votes', delta)` and re-fetches for the
+  response/broadcast.
 - [ ] **`MessageThread` shows the wrong conversation after navigation.**
   It copies query data into local `useState` guarded by a one-shot
   `isInitializedRef`; navigating `/message/friend-1 → /message/friend-2`
@@ -82,15 +81,14 @@ Ordered roughly by severity.
   it when the second service arrives; don't invest in the counter further.
 
 Smaller cleanups, do opportunistically:
-- `fetchData` checks `res.status !== 200` — dead code, axios throws on
-  non-2xx. Its error message still says "mock data".
-- `voteGameMutation` has no `onError` handling — a failed vote fails
-  silently.
+- ~~`fetchData` status check / "mock data" message~~ fixed 2026-07-13.
+- ~~`voteGameMutation` has no `onError` handling~~ fixed 2026-07-13
+  (re-syncs the games cache on failure).
 - The hub re-sorts by votes on every live update, so tiles jump under the
   cursor mid-click. Consider sorting only on load, or a stable sort with a
   "sort by votes" control.
-- `toQuizQuestionResponse` loads the full `game` relation just to read
-  `game.id` — select the `gameId` FK column instead.
+- ~~`toQuizQuestionResponse` loads the full `game` relation~~ fixed
+  2026-07-13: `QuizQuestionEntity` now declares the `gameId` FK column.
 - `gameType: game.gameType as 'quiz'` cast: fine while one type exists, but
   the zod `.strict()` parse will start throwing at runtime the moment a
   second type is seeded — replace with the planned enum when item 3 lands.
@@ -311,7 +309,7 @@ Fix the bug list above — at minimum: `.env` untracked + password rotated,
 seed/clear scripts consistent with entities, presence double-count,
 hardcoded presence URL, atomic votes.
 
-### 1. Quiz play-through (finish what's half-specced)
+### 1. Quiz play-through (finish what's half-specced) — DONE 2026-07-13
 Add `correctOptionIndex` to `QuizQuestionEntity` (never serialized to the
 client), implement `POST /games/:id/submit` exactly as `schema.md` and
 `submitQuizAnswers*` schemas already describe (stateless scoring, unanswered

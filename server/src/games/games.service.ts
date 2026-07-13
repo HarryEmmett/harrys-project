@@ -9,6 +9,9 @@ import {
   GameQuestionsResponse,
   gameQuestionsResponseSchema,
   QuizQuestionResponse,
+  SubmitQuizAnswersRequest,
+  SubmitQuizAnswersResponse,
+  submitQuizAnswersResponseSchema,
 } from '@harrys-project/shared/apiSchema';
 import { GameEntity } from './entities/game.entity';
 import { QuizQuestionEntity } from './entities/quiz-question.entity';
@@ -26,7 +29,7 @@ const toQuizQuestionResponse = (
   quizQuestion: QuizQuestionEntity,
 ): QuizQuestionResponse => ({
   id: quizQuestion.id,
-  gameId: quizQuestion.game.id,
+  gameId: quizQuestion.gameId,
   prompt: quizQuestion.prompt,
   options: quizQuestion.options,
   createdAt: quizQuestion.createdAt.toISOString(),
@@ -61,8 +64,7 @@ export class GamesService {
 
   async getGameQuestions(id: string): Promise<GameQuestionsResponse> {
     const quizQuestions = await this.quizQuestionRepo.find({
-      where: { game: { id } },
-      relations: { game: true },
+      where: { gameId: id },
       order: { createdAt: 'ASC' },
     });
 
@@ -72,15 +74,55 @@ export class GamesService {
   }
 
   async voteGame(id: string, delta: 1 | -1): Promise<GameResponse> {
-    const game = await this.gameRepo.findOneBy({ id });
+    // Atomic increment so concurrent votes can't lose updates
+    // (read → += → save races under two simultaneous requests).
+    const result = await this.gameRepo.increment({ id }, 'votes', delta);
 
-    if (!game) {
+    if (!result.affected) {
       throw new NotFoundException(`Game with id "${id}" not found`);
     }
 
-    game.votes += delta;
-    const saved = await this.gameRepo.save(game);
+    const game = await this.gameRepo.findOneByOrFail({ id });
 
-    return gameSchema.parse(toGameResponse(saved));
+    return gameSchema.parse(toGameResponse(game));
+  }
+
+  // Stateless scoring: nothing is persisted and there's no identity to tie an
+  // attempt to yet (see shared/schema.md). Unanswered questions count as
+  // incorrect so a partial submission can't inflate its score.
+  async submitQuizAnswers(
+    id: string,
+    request: SubmitQuizAnswersRequest,
+  ): Promise<SubmitQuizAnswersResponse> {
+    const gameExists = await this.gameRepo.existsBy({ id });
+
+    if (!gameExists) {
+      throw new NotFoundException(`Game with id "${id}" not found`);
+    }
+
+    const quizQuestions = await this.quizQuestionRepo.find({
+      where: { gameId: id },
+      order: { createdAt: 'ASC' },
+    });
+
+    const answersByQuestionId = new Map(
+      request.answers.map((answer) => [
+        answer.questionId,
+        answer.selectedOption,
+      ]),
+    );
+
+    const results = quizQuestions.map((question) => ({
+      questionId: question.id,
+      correct:
+        answersByQuestionId.get(question.id) ===
+        question.options[question.correctOptionIndex],
+    }));
+
+    return submitQuizAnswersResponseSchema.parse({
+      results,
+      score: results.filter((result) => result.correct).length,
+      total: quizQuestions.length,
+    });
   }
 }
