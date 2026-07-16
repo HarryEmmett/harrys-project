@@ -304,7 +304,7 @@ extracted into (or absorbed by) the auth service later if it grows real
 weight (avatars, settings, presence prefs). A third deployable today buys
 operational cost and cross-service joins for no benefit.
 
-## Roadmap
+## "Do I need to post to my database inside my websockets?"
 
 ### 0. Stabilization pass (before new features)
 Fix the bug list above — at minimum: `.env` untracked + password rotated,
