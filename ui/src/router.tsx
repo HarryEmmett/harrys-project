@@ -8,8 +8,8 @@ import {
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import BaseView from './views/BaseView';
-import Questions from './components/Questions';
-import QuestionDetail from './components/QuestionDetail';
+import GameHub from './components/GameHub';
+import QuizDetail from './components/QuizDetail';
 import MessageThread from './components/MessageThread';
 import Profile from './components/Profile';
 
@@ -30,16 +30,16 @@ const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/',
   component: function Index() {
-    return <Questions />;
+    return <GameHub />;
   },
 });
 
-const questionRoute = createRoute({
+const gameRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: '/question/$id',
-  component: function Question() {
-    const params = useParams({ from: '/question/$id' });
-    return <QuestionDetail id={params.id} />;
+  path: '/game/$id',
+  component: function Game() {
+    const params = useParams({ from: '/game/$id' });
+    return <QuizDetail id={params.id} />;
   },
 });
 
@@ -63,7 +63,7 @@ const profileRoute = createRoute({
 
 const routeTree = rootRoute.addChildren([
   indexRoute,
-  questionRoute,
+  gameRoute,
   messageRoute,
   profileRoute,
 ]);

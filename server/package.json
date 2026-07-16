@@ -17,6 +17,7 @@
   "dependencies": {
     "@harrys-project/shared": "file:../shared",
     "@nestjs/common": "^11.1.17",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.1.17",
     "@nestjs/platform-express": "^11.1.17",
     "@nestjs/platform-socket.io": "^11.1.17",

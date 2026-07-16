@@ -1,106 +1,150 @@
 import { z } from "zod";
 
-const participantSchema = z
-  .object({
-    id: z.string(),
-    name: z.string(),
-  })
-  .strict();
-
-export const questionSchema = z
-  .object({
-    id: z.string(),
-    userId: z.string(),
-    content: z.string(),
-    votes: z.number(),
-    answered: z.boolean(),
-    createdAt: z.string(),
-  })
-  .strict();
-
-const eventSchema = z
+export const gameSchema = z
   .object({
     id: z.string(),
     title: z.string(),
     description: z.string(),
+    // TODO: z.enum([...]) once a second game type exists.
+    gameType: z.literal("quiz"),
+    votes: z.number(),
     createdAt: z.string(),
   })
   .strict();
 
-export const questionsResponseSchema = z
+export const gamesResponseSchema = z
   .object({
-    event: eventSchema,
-    participants: z.array(participantSchema),
-    questions: z.array(questionSchema),
+    games: z.array(gameSchema),
   })
   .strict();
 
-export const pageVisitsResponseSchema = z
-  .object({
-    pageVisits: z.number(),
-  })
-  .strict();
-
-export const likesResponseSchema = z
-  .object({
-    likes: z.number(),
-  })
-  .strict();
-
-export const friendSchema = z
+export const quizQuestionSchema = z
   .object({
     id: z.string(),
-    name: z.string(),
-    email: z.string(),
-    bio: z.string(),
-    isOnline: z.boolean(),
+    gameId: z.string(),
+    prompt: z.string(),
+    options: z.array(z.string()),
+    createdAt: z.string(),
   })
   .strict();
 
-export const friendsResponseSchema = z
+export const gameQuestionsResponseSchema = z
   .object({
-    friends: z.array(friendSchema),
+    quizQuestions: z.array(quizQuestionSchema),
   })
   .strict();
 
-export const chatQuestionSchema = z
+export const voteGameRequestSchema = z
+  .object({
+    delta: z.union([z.literal(1), z.literal(-1)]),
+  })
+  .strict();
+
+export const submitQuizAnswersRequestSchema = z
+  .object({
+    answers: z.array(
+      z
+        .object({
+          questionId: z.string(),
+          selectedOption: z.string(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
+
+export const quizAnswerResultSchema = z
+  .object({
+    questionId: z.string(),
+    correct: z.boolean(),
+  })
+  .strict();
+
+export const submitQuizAnswersResponseSchema = z
+  .object({
+    results: z.array(quizAnswerResultSchema),
+    score: z.number(),
+    total: z.number(),
+  })
+  .strict();
+
+export const forumPostSchema = z
   .object({
     id: z.string(),
     author: z.string(),
+    title: z.string(),
     content: z.string(),
-    votes: z.number(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
   })
   .strict();
 
-export const questionChatResponseSchema = z
+export const forumPostsResponseSchema = z
   .object({
-    chatQuestions: z.array(chatQuestionSchema),
+    forumPosts: z.array(forumPostSchema),
   })
   .strict();
 
-export const messageSchema = z
+export const createForumPostRequestSchema = z
+  .object({
+    author: z.string(),
+    title: z.string(),
+    content: z.string(),
+  })
+  .strict();
+
+export const updateForumPostRequestSchema = z
+  .object({
+    title: z.string(),
+    content: z.string(),
+  })
+  .strict();
+
+export const forumReplySchema = z
   .object({
     id: z.string(),
-    author: z.enum(['me', 'them']),
-    authorName: z.string(),
+    postId: z.string(),
+    author: z.string(),
     content: z.string(),
-    sentAt: z.string(),
+    createdAt: z.string(),
   })
   .strict();
 
-export const messagesResponseSchema = z
+export const forumRepliesResponseSchema = z
   .object({
-    messages: z.array(messageSchema),
+    forumReplies: z.array(forumReplySchema),
   })
   .strict();
 
-export type QuestionsResponse = z.infer<typeof questionsResponseSchema>;
-export type PageVisitsResponse = z.infer<typeof pageVisitsResponseSchema>;
-export type LikesResponse = z.infer<typeof likesResponseSchema>;
-export type QuestionResponse = z.infer<typeof questionSchema>;
-export type FriendsResponse = z.infer<typeof friendsResponseSchema>;
-export type FriendResponse = z.infer<typeof friendSchema>;
-export type ChatQuestionResponse = z.infer<typeof chatQuestionSchema>;
-export type QuestionChatResponse = z.infer<typeof questionChatResponseSchema>;
-export type MessageResponse = z.infer<typeof messageSchema>;
-export type MessagesResponse = z.infer<typeof messagesResponseSchema>;
+export const createForumReplyRequestSchema = z
+  .object({
+    author: z.string(),
+    content: z.string(),
+  })
+  .strict();
+
+export type GameResponse = z.infer<typeof gameSchema>;
+export type GamesResponse = z.infer<typeof gamesResponseSchema>;
+export type QuizQuestionResponse = z.infer<typeof quizQuestionSchema>;
+export type GameQuestionsResponse = z.infer<typeof gameQuestionsResponseSchema>;
+export type VoteGameRequest = z.infer<typeof voteGameRequestSchema>;
+export type SubmitQuizAnswersRequest = z.infer<
+  typeof submitQuizAnswersRequestSchema
+>;
+export type QuizAnswerResult = z.infer<typeof quizAnswerResultSchema>;
+export type SubmitQuizAnswersResponse = z.infer<
+  typeof submitQuizAnswersResponseSchema
+>;
+export type ForumPostResponse = z.infer<typeof forumPostSchema>;
+export type ForumPostsResponse = z.infer<typeof forumPostsResponseSchema>;
+export type CreateForumPostRequest = z.infer<
+  typeof createForumPostRequestSchema
+>;
+export type UpdateForumPostRequest = z.infer<
+  typeof updateForumPostRequestSchema
+>;
+export type ForumReplyResponse = z.infer<typeof forumReplySchema>;
+export type ForumRepliesResponse = z.infer<typeof forumRepliesResponseSchema>;
+export type CreateForumReplyRequest = z.infer<
+  typeof createForumReplyRequestSchema
+>;

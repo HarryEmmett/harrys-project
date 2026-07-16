@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from '@tanstack/react-router';
 import { User } from 'lucide-react';
-import type { MessageResponse } from '@harrys-project/shared/apiSchema';
+import type { Message } from '../mockData/messages';
 import { useFriendsQuery } from '../hooks/useFriendsQuery';
 import { useMessagesQuery } from '../hooks/useMessagesQuery';
 import ErrorView from '../views/ErrorView';
@@ -18,7 +18,7 @@ const MessageThread = ({ id }: MessageThreadProps) => {
   const { messagesQuery } = useMessagesQuery(id);
   const { data, isLoading, isError } = messagesQuery;
 
-  const [messages, setMessages] = useState<MessageResponse[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const nextMessageIdRef = useRef(1);
   const isInitializedRef = useRef(false);
 
@@ -31,7 +31,7 @@ const MessageThread = ({ id }: MessageThreadProps) => {
   }, [data]);
 
   const handleSend = (content: string) => {
-    const newMessage: MessageResponse = {
+    const newMessage: Message = {
       id: `m${nextMessageIdRef.current++}`,
       author: 'me',
       authorName: 'You',

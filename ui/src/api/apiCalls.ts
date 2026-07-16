@@ -1,21 +1,15 @@
 import axios from 'axios';
 import { constants } from '@harrys-project/shared/constants';
 import {
-  questionsResponseSchema,
-  questionSchema,
-  questionChatResponseSchema,
-  pageVisitsResponseSchema,
-  friendsResponseSchema,
-  messagesResponseSchema,
-  type QuestionsResponse,
-  type QuestionResponse,
-  type QuestionChatResponse,
-  type PageVisitsResponse,
-  type FriendsResponse,
-  type MessagesResponse,
+  gamesResponseSchema,
+  gameSchema,
+  gameQuestionsResponseSchema,
+  type GamesResponse,
+  type GameResponse,
+  type GameQuestionsResponse,
 } from '@harrys-project/shared/apiSchema';
 
-const apiUrl =
+export const apiUrl =
   (import.meta.env.VITE_API_URL as string) || 'http://localhost:3000';
 
 const fetchData = async (endpoint: string): Promise<unknown> => {
@@ -25,42 +19,34 @@ const fetchData = async (endpoint: string): Promise<unknown> => {
   return data;
 };
 
-export async function fetchQuestionsData(): Promise<QuestionsResponse> {
-  const data = await fetchData(constants.rest.endpoints.QUESTIONS_ENDPOINT);
-  return questionsResponseSchema.parse(data);
+export async function fetchGamesData(): Promise<GamesResponse> {
+  const data = await fetchData(constants.rest.endpoints.GAMES_ENDPOINT);
+  return gamesResponseSchema.parse(data);
 }
 
-export async function fetchPageVisitsData(): Promise<PageVisitsResponse> {
-  const data = await fetchData(constants.rest.endpoints.PAGE_VISITS_ENDPOINT);
-  return pageVisitsResponseSchema.parse(data);
-}
-
-export async function fetchQuestionData(id: string): Promise<QuestionResponse> {
+export async function fetchGameData(id: string): Promise<GameResponse> {
   const data = await fetchData(
-    `${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${id}`,
+    `${constants.rest.endpoints.GAMES_ENDPOINT}/${id}`,
   );
-  return questionSchema.parse(data);
+  return gameSchema.parse(data);
 }
 
-export async function fetchQuestionChatData(
+export async function fetchGameQuestionsData(
   id: string,
-): Promise<QuestionChatResponse> {
+): Promise<GameQuestionsResponse> {
   const data = await fetchData(
-    `${constants.rest.endpoints.QUESTIONS_ENDPOINT}/${id}/chat`,
+    `${constants.rest.endpoints.GAMES_ENDPOINT}/${id}/questions`,
   );
-  return questionChatResponseSchema.parse(data);
+  return gameQuestionsResponseSchema.parse(data);
 }
 
-export async function fetchFriendsData(): Promise<FriendsResponse> {
-  const data = await fetchData(constants.rest.endpoints.FRIENDS_ENDPOINT);
-  return friendsResponseSchema.parse(data);
-}
-
-export async function fetchMessagesData(
-  friendId: string,
-): Promise<MessagesResponse> {
-  const data = await fetchData(
-    `${constants.rest.endpoints.MESSAGES_ENDPOINT}/${friendId}`,
+export async function voteGame(
+  id: string,
+  delta: 1 | -1,
+): Promise<GameResponse> {
+  const res = await axios.patch(
+    `${apiUrl}${constants.rest.endpoints.GAMES_ENDPOINT}/${id}/vote`,
+    { delta },
   );
-  return messagesResponseSchema.parse(data);
+  return gameSchema.parse(res.data);
 }

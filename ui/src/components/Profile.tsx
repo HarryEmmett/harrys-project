@@ -5,7 +5,7 @@ import ErrorView from '../views/ErrorView';
 const myProfile = {
   name: 'Harry Emmett',
   email: 'harryemmett@live.co.uk',
-  bio: 'Building a Slido clone, one component at a time.',
+  bio: 'Building a game hub, one game at a time.',
 };
 
 const getInitials = (name: string) =>
