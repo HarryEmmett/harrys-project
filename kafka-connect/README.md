@@ -2,7 +2,7 @@
 
 A standalone playground for learning Kafka Connect. It is **not wired into
 anything else in this repo** — no shared config, no shared network, no shared
-database. `make clean` deletes every trace of it.
+database. `./start.sh --clean` deletes every trace of it.
 
 ```
   you                Debezium               Kafka                 ES sink
@@ -22,40 +22,55 @@ into a document. Four containers, no application code.
 
 ## Run it
 
+Everything runs in local containers on your machine. Nothing is deployed
+anywhere: every port binds to localhost, and one flag removes the lot.
+
 Requires Docker (with Compose v2) and roughly 4 GB of memory free.
 
 ```bash
 cd kafka-connect
-make up          # build + start + wait until healthy   (first build: ~3-5 min)
-make register    # create the source and sink connectors
+./start.sh
 ```
 
-`make register` prints the connector states. You want `RUNNING` for both the
-connector and its task.
-
-Then push an event and watch it come out the far end:
+That single script does the whole thing: builds the Connect image, starts the
+four containers, waits until Elasticsearch and Connect answer, registers both
+connectors, inserts one event, and shows you the document that came out the far
+end. The first run takes a few minutes because it downloads the connector
+plugins; after that it is seconds.
 
 ```bash
-make insert TYPE=game.finished WHO=harry MSG="first hand-written event"
-sleep 3
-make events
+./start.sh --no-demo   # up + register only, no sample event
+./start.sh --fresh     # wipe the volumes first and start clean
+./start.sh --stop      # stop the containers, keep the data
+./start.sh --clean     # delete containers, network and volumes
 ```
 
-`make events` hits Elasticsearch directly and should show your row as a document.
+Then push your own events:
 
-Everything in one go: `make demo`. Full teardown: `make clean`.
+```bash
+./scripts/insert-event.sh game.finished harry "first hand-written event"
+sleep 3
+./scripts/show-events.sh
+```
+
+`insert-event.sh` is nothing clever — it is one `INSERT` over `psql`. You can do
+the same thing by hand in `./scripts/psql.sh`, or from any Postgres client
+pointed at `localhost:5433` (`demo`/`demo`).
+
+There is a `Makefile` wrapping the same scripts if you prefer it: `make up`,
+`make register`, `make insert`, `make events`, `make clean`, `make help`.
 
 ## Poke at each stage
 
 | Command | What it shows |
 | --- | --- |
-| `make psql` | psql shell on the source DB — `INSERT`/`UPDATE`/`DELETE` by hand |
-| `make topic` | the raw Debezium change events on the Kafka topic |
-| `make events` | the resulting documents in Elasticsearch |
-| `make status` | connector + task state, with the top of the stack trace on failure |
-| `make logs` | the Connect worker log |
+| `./scripts/psql.sh` | psql shell on the source DB — `INSERT`/`UPDATE`/`DELETE` by hand |
+| `./scripts/consume-topic.sh` | the raw Debezium change events on the Kafka topic |
+| `./scripts/show-events.sh` | the resulting documents in Elasticsearch |
+| `./scripts/status.sh` | connector + task state, with the top of the stack trace on failure |
+| `docker compose logs -f connect` | the Connect worker log |
 
-The interesting one is `make topic`. Open it in a second terminal, then insert or
+The interesting one is `consume-topic.sh`. Open it in a second terminal, then insert or
 update a row in a third, and watch the envelope arrive:
 
 ```json
@@ -69,7 +84,7 @@ update a row in a third, and watch the envelope arrive:
 ```
 
 `op` is `c` create, `u` update, `d` delete, `r` read-during-snapshot. Try an
-`UPDATE` in `make psql` and you will see `before` populated too — that is what
+`UPDATE` in `psql.sh` and you will see `before` populated too — that is what
 `REPLICA IDENTITY FULL` bought us in `postgres/init/01-events.sql`.
 
 A `DELETE` produces a delete event **and** a tombstone (a record with a null
@@ -79,11 +94,14 @@ document disappears from Elasticsearch. That round trip is worth doing once.
 ## The parts
 
 ```
+start.sh                     one command: build, start, register, demo event
 docker-compose.yml           postgres, kafka (KRaft), elasticsearch, connect
 connect/Dockerfile           Connect worker + the two connector plugins
 postgres/init/01-events.sql  the events table, applied on first start
 connectors/*.json            the two connector configs, POSTed to the REST API
-scripts/*.sh                 what the Makefile targets actually run
+scripts/*.sh                 the individual steps start.sh strings together
+Makefile                     thin wrapper over the same scripts
+.env.example                 only needed if the default host ports clash
 ```
 
 ### Postgres
@@ -110,19 +128,10 @@ mode with a REST API. Connector configs, offsets and status live in Kafka topics
 (`_kcd-connect-*`), which is why a connector survives
 `docker compose restart connect`.
 
-The API is worth exploring by hand:
-
-```bash
-curl -s localhost:8083/connectors
-curl -s localhost:8083/connectors/events-postgres-source/status
-curl -s localhost:8083/connector-plugins
-curl -s -X PUT  localhost:8083/connectors/events-elasticsearch-sink/pause
-curl -s -X PUT  localhost:8083/connectors/events-elasticsearch-sink/resume
-curl -s -X POST localhost:8083/connectors/events-elasticsearch-sink/restart
-```
-
-Pausing the sink, inserting a few rows, then resuming is a good way to see that
-Kafka is a buffer and the connectors are decoupled.
+Every connector in this stack was created by POSTing JSON to that API — there is
+no connector config file the worker reads at boot. See
+[Posting to the Connect REST API](#posting-to-the-connect-rest-api) below for the
+exact payloads.
 
 ### The sink and its transforms
 
@@ -140,27 +149,186 @@ single-message transforms, applied in order:
    `events`, so the index is called `events` rather than `demo.public.events`.
 
 Try commenting out `extractKey` (delete it from `transforms` and re-run
-`make register`) and watch updates start piling up as separate documents. SMTs
+`./scripts/register-connectors.sh`) and watch updates start piling up as separate documents. SMTs
 are the cheapest way to learn what Connect is doing.
+
+## Posting to the Connect REST API
+
+The worker listens on `http://localhost:8083`. `./scripts/register-connectors.sh`
+just POSTs the two files in `connectors/` to it — but doing it by hand is the
+best way to understand what a connector actually is. Every example below is
+copy-pasteable.
+
+### Create the Postgres source connector
+
+`POST /connectors` with a `name` and a `config` object:
+
+```bash
+curl -s -X POST http://localhost:8083/connectors \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "events-postgres-source",
+    "config": {
+      "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+      "tasks.max": "1",
+      "database.hostname": "postgres",
+      "database.port": "5432",
+      "database.user": "demo",
+      "database.password": "demo",
+      "database.dbname": "demo",
+      "topic.prefix": "demo",
+      "table.include.list": "public.events",
+      "plugin.name": "pgoutput",
+      "slot.name": "events_slot",
+      "publication.name": "events_pub",
+      "publication.autocreate.mode": "filtered",
+      "snapshot.mode": "initial",
+      "time.precision.mode": "connect",
+      "topic.creation.default.replication.factor": "1",
+      "topic.creation.default.partitions": "1"
+    }
+  }'
+```
+
+Hostnames are container names (`postgres`, `kafka`, `elasticsearch`) because the
+worker resolves them inside the compose network, not from your laptop.
+
+### Create the Elasticsearch sink connector
+
+```bash
+curl -s -X POST http://localhost:8083/connectors \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "name": "events-elasticsearch-sink",
+    "config": {
+      "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
+      "tasks.max": "1",
+      "topics": "demo.public.events",
+      "connection.url": "http://elasticsearch:9200",
+      "key.ignore": "false",
+      "schema.ignore": "true",
+      "behavior.on.null.values": "delete",
+      "transforms": "unwrap,extractKey,route",
+      "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+      "transforms.unwrap.delete.tombstone.handling.mode": "tombstone",
+      "transforms.unwrap.add.fields": "op,source.ts_ms",
+      "transforms.extractKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+      "transforms.extractKey.field": "id",
+      "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+      "transforms.route.regex": "demo\\.public\\.events",
+      "transforms.route.replacement": "events"
+    }
+  }'
+```
+
+A `sink` connector needs `topics` (or `topics.regex`); a `source` connector
+decides its own topics. That is the only structural difference between the two.
+
+### Change a connector without recreating it
+
+`PUT /connectors/<name>/config` takes **just the config object**, no `name` and
+no `config` wrapper. It creates the connector if it does not exist, so it is the
+idempotent way to apply a change:
+
+```bash
+curl -s -X PUT http://localhost:8083/connectors/events-elasticsearch-sink/config \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
+    "tasks.max": "1",
+    "topics": "demo.public.events",
+    "connection.url": "http://elasticsearch:9200",
+    "key.ignore": "true",
+    "schema.ignore": "true"
+  }'
+```
+
+That particular body is worth running: it drops the transforms and sets
+`key.ignore: true`, so documents get generated ids instead of the row id. Insert
+and then update the same row and you will get two documents rather than one.
+`./scripts/register-connectors.sh` puts it back.
+
+### Check a config before you commit to it
+
+`PUT /connector-plugins/<class>/config/validate` runs the connector's own
+validation and returns every field with its errors. Much faster than creating a
+connector and reading a stack trace:
+
+```bash
+curl -s -X PUT \
+  http://localhost:8083/connector-plugins/io.confluent.connect.elasticsearch.ElasticsearchSinkConnector/config/validate \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
+    "name": "scratch",
+    "topics": "demo.public.events",
+    "connection.url": "not-a-url"
+  }' | grep -o '"errors":\[[^]]*\]' | grep -v '\[\]'
+```
+
+### Everything else
+
+```bash
+# what exists, and what state is it in
+curl -s http://localhost:8083/connectors
+curl -s http://localhost:8083/connectors?expand=status
+curl -s http://localhost:8083/connectors/events-postgres-source/status
+curl -s http://localhost:8083/connectors/events-postgres-source/config
+curl -s http://localhost:8083/connectors/events-postgres-source/tasks
+
+# which plugins this worker has installed
+curl -s http://localhost:8083/connector-plugins
+
+# lifecycle
+curl -s -X PUT    http://localhost:8083/connectors/events-elasticsearch-sink/pause
+curl -s -X PUT    http://localhost:8083/connectors/events-elasticsearch-sink/resume
+curl -s -X POST   http://localhost:8083/connectors/events-elasticsearch-sink/restart
+curl -s -X POST   http://localhost:8083/connectors/events-elasticsearch-sink/tasks/0/restart
+curl -s -X DELETE http://localhost:8083/connectors/events-elasticsearch-sink
+
+# worker itself
+curl -s http://localhost:8083/
+```
+
+Pipe any of these through `jq` if you have it — Connect returns dense one-line
+JSON.
+
+### Two experiments worth doing
+
+**Kafka is a buffer.** Pause the sink, insert several rows, confirm nothing new
+is in Elasticsearch, then resume and watch them all arrive at once:
+
+```bash
+curl -s -X PUT http://localhost:8083/connectors/events-elasticsearch-sink/pause
+for i in 1 2 3; do ./scripts/insert-event.sh buffered.event harry "number $i"; done
+./scripts/show-events.sh          # unchanged
+curl -s -X PUT http://localhost:8083/connectors/events-elasticsearch-sink/resume
+sleep 5 && ./scripts/show-events.sh
+```
+
+**Connectors are decoupled from the data.** Delete the sink entirely, insert
+rows, then recreate it. It resumes from its stored consumer offset, so it picks
+up the rows it missed — nothing was lost, because the events live in Kafka, not
+in the connector.
 
 ## When it breaks
 
-**A connector is FAILED.** `make status` prints the head of the trace;
-`make logs` has the rest.
+**A connector is FAILED.** `./scripts/status.sh` prints the head of the trace;
+`docker compose logs connect` has the rest.
 
-**`make events` returns `index_not_found_exception`.** No document has reached
+**`./scripts/show-events.sh` returns `index_not_found_exception`.** No document has reached
 Elasticsearch yet. Check the sink is `RUNNING`, then check the topic has data
-with `make topic`. If the topic is empty the problem is upstream, in the source.
+with `./scripts/consume-topic.sh`. If the topic is empty the problem is upstream, in the source.
 
 **The topic is empty after an insert.** Confirm the source connector is
-`RUNNING`, and confirm the row really landed: `make psql`, then
+`RUNNING`, and confirm the row really landed: `./scripts/psql.sh`, then
 `SELECT * FROM events;`.
 
 **The build fails fetching a plugin.** `connect/Dockerfile` pulls Debezium from
 Maven Central and the Elasticsearch sink from Confluent Hub; both need network at
 build time.
 
-**Nothing works and you want a clean slate.** `make reset` — wipes the volumes
+**Nothing works and you want a clean slate.** `./start.sh --fresh` — wipes the volumes
 (so the replication slot and the Elasticsearch index go too) and rebuilds.
 
 ## Things deliberately left out

@@ -1,10 +1,13 @@
 # Kafka Connect learning sandbox — see README.md
 .DEFAULT_GOAL := help
 
-.PHONY: help up build register demo insert events topic status psql logs ps down clean reset
+.PHONY: help start up build register demo insert events topic status psql logs ps down clean reset
 
 help: ## Show this help
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[36m%-10s\033[0m %s\n", $$1, $$2}'
+
+start: ## Everything in one command (same as ./start.sh)
+	./start.sh
 
 up: ## Build images, start everything, wait until healthy
 	docker compose up -d --build
