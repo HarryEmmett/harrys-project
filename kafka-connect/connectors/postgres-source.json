@@ -1,0 +1,31 @@
+{
+  "name": "events-postgres-source",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+
+    "database.hostname": "postgres",
+    "database.port": "5432",
+    "database.user": "demo",
+    "database.password": "demo",
+    "database.dbname": "demo",
+
+    "topic.prefix": "demo",
+    "schema.include.list": "public",
+    "table.include.list": "public.events",
+
+    "plugin.name": "pgoutput",
+    "slot.name": "events_slot",
+    "publication.name": "events_pub",
+    "publication.autocreate.mode": "filtered",
+
+    "snapshot.mode": "initial",
+    "time.precision.mode": "connect",
+    "decimal.handling.mode": "double",
+    "tombstones.on.delete": "true",
+
+    "topic.creation.default.replication.factor": "1",
+    "topic.creation.default.partitions": "1",
+    "topic.creation.default.cleanup.policy": "compact"
+  }
+}
