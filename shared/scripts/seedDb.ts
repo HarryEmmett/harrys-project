@@ -96,6 +96,23 @@ async function seed() {
       `Seeded game "${gameTitle}" (${gameId}) with ${QUIZ_QUESTIONS.length} quiz questions.`,
     );
 
+    // Codenames needs no seeded content — boards are generated server-side
+    // per session. The hub just needs the catalog row.
+    const codenamesId = randomUUID();
+    const codenamesTitle = 'Codenames';
+    await client.query(
+      `INSERT INTO "games" ("id", "title", "description", "gameType", "votes") VALUES ($1, $2, $3, $4, $5)`,
+      [
+        codenamesId,
+        codenamesTitle,
+        'The classic word-association game: spymasters give one-word clues, operatives find their team’s agents — and avoid the assassin.',
+        'codenames',
+        0,
+      ],
+    );
+
+    console.log(`Seeded game "${codenamesTitle}" (${codenamesId}).`);
+
     for (const { author, title, content } of FORUM_POSTS) {
       await client.query(
         `INSERT INTO "forum_posts" ("id", "author", "title", "content") VALUES ($1, $2, $3, $4)`,

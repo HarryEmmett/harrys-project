@@ -1,5 +1,8 @@
 import { constants } from '@harrys-project/shared/constants';
-import { GameResponse } from '@harrys-project/shared/apiSchema';
+import {
+  CodenamesSessionResponse,
+  GameResponse,
+} from '@harrys-project/shared/apiSchema';
 import { WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { Server } from 'socket.io';
 import { UserPresenceService } from '../userPresence/userPresence.service';
@@ -34,5 +37,15 @@ export class GamesGateway {
   // broadcasts to, so this just goes out to every connected client.
   broadcastGameUpdated(game: GameResponse) {
     this.server?.emit(constants.ws.games.GAMES_UPDATED_EVENT, game);
+  }
+
+  // Called by CodenamesController after any move. Broadcast to everyone (same
+  // no-rooms tradeoff as votes); clients ignore sessions they aren't viewing.
+  // The payload is the operative view, so no key material leaks over the wire.
+  broadcastCodenamesSessionUpdated(session: CodenamesSessionResponse) {
+    this.server?.emit(
+      constants.ws.games.CODENAMES_SESSION_UPDATED_EVENT,
+      session,
+    );
   }
 }

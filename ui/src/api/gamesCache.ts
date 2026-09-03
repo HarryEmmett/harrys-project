@@ -1,11 +1,13 @@
 import type { QueryClient } from '@tanstack/react-query';
 import type {
+  CodenamesSessionResponse,
   GameResponse,
   GamesResponse,
 } from '@harrys-project/shared/apiSchema';
 import { constants } from '@harrys-project/shared/constants';
 
-const { GAMES_KEY, GAME_KEY } = constants.rest.queryClientConfig.queryKeys;
+const { GAMES_KEY, GAME_KEY, CODENAMES_SESSION_KEY } =
+  constants.rest.queryClientConfig.queryKeys;
 
 export const updateGameInCache = (
   queryClient: QueryClient,
@@ -20,4 +22,14 @@ export const updateGameInCache = (
       : oldData,
   );
   queryClient.setQueryData<GameResponse>([GAME_KEY, game.id], game);
+};
+
+export const updateCodenamesSessionInCache = (
+  queryClient: QueryClient,
+  session: CodenamesSessionResponse,
+) => {
+  queryClient.setQueryData<CodenamesSessionResponse>(
+    [CODENAMES_SESSION_KEY, session.id],
+    session,
+  );
 };
