@@ -1,0 +1,155 @@
+# Standalone Kafka Connect learning sandbox.
+#
+# Postgres --(Debezium CDC)--> Kafka --(Elasticsearch sink)--> Elasticsearch
+#
+# Nothing here talks to the rest of this repo. It is a self-contained playground:
+# `docker compose down -v` removes every trace of it.
+
+name: kafka-connect-demo
+
+services:
+  # ---------------------------------------------------------------- source DB
+  postgres:
+    image: postgres:16-alpine
+    container_name: kcd-postgres
+    # wal_level=logical is what makes change-data-capture possible at all.
+    # Without it Postgres only writes enough WAL for crash recovery, not enough
+    # to reconstruct the row-level changes Debezium wants to stream.
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=10
+      - -c
+      - max_replication_slots=10
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-demo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-demo}
+      POSTGRES_DB: ${POSTGRES_DB:-demo}
+    ports:
+      # 5433 on the host so this never collides with a Postgres you already run.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-demo} -d ${POSTGRES_DB:-demo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # ------------------------------------------------------------------- broker
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: kcd-kafka
+    ports:
+      # Reachable from your laptop as localhost:29092.
+      # Inside the compose network other services use kafka:9092.
+      - "${KAFKA_HOST_PORT:-29092}:29092"
+    environment:
+      # KRaft mode: this one container is both broker and controller, so there
+      # is no ZooKeeper anywhere in this stack.
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      # Single broker, so nothing can be replicated more than once.
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 24
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+  # -------------------------------------------------------------------- sink
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+    container_name: kcd-elasticsearch
+    environment:
+      discovery.type: single-node
+      # Security off: this is a local sandbox, not something to expose.
+      xpack.security.enabled: "false"
+      xpack.security.http.ssl.enabled: "false"
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - "${ES_HOST_PORT:-9200}:9200"
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 30s
+
+  # ----------------------------------------------------------- Kafka Connect
+  connect:
+    build:
+      context: ./connect
+      args:
+        # Override in .env if you need to pin a plugin version.
+        # See "A known unverified bit" in README.md.
+        CP_VERSION: ${CP_VERSION:-7.6.1}
+        DEBEZIUM_VERSION: ${DEBEZIUM_VERSION:-2.7.4.Final}
+        ES_SINK_VERSION: ${ES_SINK_VERSION:-latest}
+    image: kcd-connect:local
+    container_name: kcd-connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${CONNECT_HOST_PORT:-8083}:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_ADVERTISED_HOST_NAME: connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_LISTENERS: http://0.0.0.0:8083
+
+      # Distributed mode stores connector configs, offsets and status in Kafka
+      # itself. That is why a connector survives `docker compose restart connect`.
+      CONNECT_GROUP_ID: kcd-connect-cluster
+      CONNECT_CONFIG_STORAGE_TOPIC: _kcd-connect-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: _kcd-connect-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: _kcd-connect-status
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_PARTITIONS: 1
+      CONNECT_STATUS_STORAGE_PARTITIONS: 1
+
+      # JSON with schemas: verbose on the wire, but it means the sink connector
+      # receives typed records and you can read the topic with plain curl/jq.
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.json.JsonConverter
+      CONNECT_KEY_CONVERTER_SCHEMAS_ENABLE: "true"
+      CONNECT_VALUE_CONVERTER_SCHEMAS_ENABLE: "true"
+
+      CONNECT_PLUGIN_PATH: /usr/share/java,/usr/share/confluent-hub-components,/opt/connectors
+      CONNECT_LOG4J_ROOT_LOGLEVEL: INFO
+      CONNECT_LOG4J_LOGGERS: org.reflections=ERROR,org.apache.kafka.connect.runtime.WorkerSinkTask=INFO
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8083/connectors >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 40
+      start_period: 60s
+
+volumes:
+  pgdata:
+  esdata:

@@ -1,0 +1,38 @@
+{
+  "name": "events-elasticsearch-sink",
+  "config": {
+    "connector.class": "io.confluent.connect.elasticsearch.ElasticsearchSinkConnector",
+    "tasks.max": "1",
+
+    "topics": "demo.public.events",
+    "connection.url": "http://elasticsearch:9200",
+    "type.name": "_doc",
+
+    "key.ignore": "false",
+    "schema.ignore": "true",
+    "behavior.on.null.values": "delete",
+
+    "batch.size": "10",
+    "linger.ms": "1000",
+    "flush.timeout.ms": "30000",
+    "max.retries": "5",
+    "retry.backoff.ms": "1000",
+
+    "errors.tolerance": "all",
+    "errors.log.enable": "true",
+    "errors.log.include.messages": "true",
+
+    "transforms": "unwrap,extractKey,route",
+
+    "transforms.unwrap.type": "io.debezium.transforms.ExtractNewRecordState",
+    "transforms.unwrap.delete.tombstone.handling.mode": "tombstone",
+    "transforms.unwrap.add.fields": "op,source.ts_ms",
+
+    "transforms.extractKey.type": "org.apache.kafka.connect.transforms.ExtractField$Key",
+    "transforms.extractKey.field": "id",
+
+    "transforms.route.type": "org.apache.kafka.connect.transforms.RegexRouter",
+    "transforms.route.regex": "demo\\.public\\.events",
+    "transforms.route.replacement": "events"
+  }
+}
