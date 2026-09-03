@@ -17,6 +17,24 @@ bold() { printf '\033[1m%s\033[0m\n' "$*"; }
 step() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
+# This stack has not been run end to end by its author. The plugin versions baked
+# into connect/Dockerfile are the least-tested part, so point at that first.
+on_error() {
+  printf '\n\033[1;31mstart.sh failed.\033[0m\n' >&2
+  cat >&2 <<'HINT'
+  Most likely causes, in order:
+    1. Connector plugin versions  -> README.md, "A known unverified bit"
+    2. A container never got healthy -> docker compose ps
+                                        docker compose logs --tail=80 connect
+    3. A host port already in use -> copy .env.example to .env and change them
+
+  This stack has never been run end to end by its author, so a first-run
+  failure here is expected to be a version or environment mismatch rather
+  than a mistake in the pipeline wiring.
+HINT
+}
+trap on_error ERR
+
 RUN_DEMO=1
 FRESH=0
 MODE=up

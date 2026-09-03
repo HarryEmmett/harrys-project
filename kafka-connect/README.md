@@ -60,6 +60,67 @@ pointed at `localhost:5433` (`demo`/`demo`).
 There is a `Makefile` wrapping the same scripts if you prefer it: `make up`,
 `make register`, `make insert`, `make events`, `make clean`, `make help`.
 
+> **If the first run fails**, read the next section before debugging anything
+> else — this stack has never been executed end to end, and the connector plugin
+> versions are the part most likely to need a nudge.
+
+## A known unverified bit — read this if the first run fails
+
+**This stack has never been run end to end.** It was written in an environment
+with no Docker daemon, so the Compose file, the connector JSON, the shell scripts
+and the REST payloads in this README are all syntax-checked, but no container has
+ever actually started. Treat your first `./start.sh` as the real test.
+
+The specific risk is **connector plugin versions**, because the two plugins come
+from different places and have to agree with the base image's Java version:
+
+| Plugin | Version | Confidence |
+| --- | --- | --- |
+| Debezium Postgres | `2.7.4.Final`, pinned | Verified to exist on Maven Central. 2.7.x targets Kafka 3.x and Java 11, matching the CP 7.6 image. **Do not bump to 3.x** without also moving to a Java 17 base image. |
+| Elasticsearch sink | `latest`, unpinned | **Not verified.** Confluent Hub was unreachable when this was written, so no specific version could be confirmed to exist. `latest` keeps the build working but means you get whatever is current. |
+
+### Symptoms and fixes
+
+**The image build fails at the `confluent-hub install` line.** Either the network
+blocked Confluent Hub, or the version string is wrong. Retry; if it persists, pin
+a known version (below).
+
+**The build succeeds but the sink connector will not create**, with
+`Failed to find any class that implements Connector and which name matches
+io.confluent.connect.elasticsearch.ElasticsearchSinkConnector`. The plugin did
+not land on the plugin path. Check what the worker actually loaded:
+
+```bash
+curl -s http://localhost:8083/connector-plugins
+docker compose exec connect ls /usr/share/confluent-hub-components
+```
+
+**`UnsupportedClassVersionError` in `docker compose logs connect`.** A plugin was
+compiled for a newer Java than the base image provides — this is what a too-new
+Debezium or ES sink looks like. Pin both down, or move `CP_VERSION` up.
+
+**The sink connects but every write fails against Elasticsearch.** Likely an ES
+sink major version that does not speak to Elasticsearch 8. Either pin an ES sink
+in the 14.x/15.x range, or drop `docker.elastic.co/elasticsearch/elasticsearch`
+to `7.17.22` in `docker-compose.yml`.
+
+### Pinning a version
+
+All three versions are build args, settable in `.env` (copy `.env.example`):
+
+```bash
+echo 'ES_SINK_VERSION=14.1.0' >> .env
+docker compose build --no-cache connect
+./start.sh
+```
+
+Once you have a working build, find out what you actually got and pin that:
+
+```bash
+curl -s http://localhost:8083/connector-plugins \
+  | tr ',' '\n' | grep -A1 elasticsearch
+```
+
 ## Poke at each stage
 
 | Command | What it shows |
@@ -326,7 +387,8 @@ with `./scripts/consume-topic.sh`. If the topic is empty the problem is upstream
 
 **The build fails fetching a plugin.** `connect/Dockerfile` pulls Debezium from
 Maven Central and the Elasticsearch sink from Confluent Hub; both need network at
-build time.
+build time. See [A known unverified bit](#a-known-unverified-bit--read-this-if-the-first-run-fails)
+— plugin versions are the least-tested part of this stack.
 
 **Nothing works and you want a clean slate.** `./start.sh --fresh` — wipes the volumes
 (so the replication slot and the Elasticsearch index go too) and rebuilds.
