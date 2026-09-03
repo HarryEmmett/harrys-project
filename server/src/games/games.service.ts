@@ -17,7 +17,7 @@ const toGameResponse = (game: GameEntity): GameResponse => ({
   id: game.id,
   title: game.title,
   description: game.description,
-  gameType: game.gameType as 'quiz',
+  gameType: game.gameType as GameResponse['gameType'],
   votes: game.votes,
   createdAt: game.createdAt.toISOString(),
 });

@@ -5,8 +5,7 @@ export const gameSchema = z
     id: z.string(),
     title: z.string(),
     description: z.string(),
-    // TODO: z.enum([...]) once a second game type exists.
-    gameType: z.literal("quiz"),
+    gameType: z.enum(["quiz", "codenames"]),
     votes: z.number(),
     createdAt: z.string(),
   })
@@ -65,6 +64,81 @@ export const submitQuizAnswersResponseSchema = z
     results: z.array(quizAnswerResultSchema),
     score: z.number(),
     total: z.number(),
+  })
+  .strict();
+
+export const codenamesTeamSchema = z.enum(["red", "blue"]);
+
+export const codenamesCardRoleSchema = z.enum([
+  "red",
+  "blue",
+  "neutral",
+  "assassin",
+]);
+
+// Operative view of a card: role is only present once the card is revealed —
+// the full key never leaves the server except via the spymaster key endpoint.
+export const codenamesCardSchema = z
+  .object({
+    word: z.string(),
+    revealed: z.boolean(),
+    role: codenamesCardRoleSchema.nullable(),
+  })
+  .strict();
+
+export const codenamesClueSchema = z
+  .object({
+    word: z.string(),
+    count: z.number(),
+  })
+  .strict();
+
+export const codenamesSessionStatusSchema = z.enum([
+  "in_progress",
+  "red_won",
+  "blue_won",
+]);
+
+export const codenamesSessionSchema = z
+  .object({
+    id: z.string(),
+    gameId: z.string(),
+    cards: z.array(codenamesCardSchema).length(25),
+    startingTeam: codenamesTeamSchema,
+    currentTeam: codenamesTeamSchema,
+    status: codenamesSessionStatusSchema,
+    currentClue: codenamesClueSchema.nullable(),
+    guessesRemaining: z.number().nullable(),
+    redRemaining: z.number(),
+    blueRemaining: z.number(),
+    createdAt: z.string(),
+  })
+  .strict();
+
+// Spymaster key: the role of every card by board index (0-24).
+export const codenamesKeyResponseSchema = z
+  .object({
+    sessionId: z.string(),
+    roles: z.array(codenamesCardRoleSchema).length(25),
+  })
+  .strict();
+
+export const createCodenamesSessionRequestSchema = z
+  .object({
+    gameId: z.string(),
+  })
+  .strict();
+
+export const giveCodenamesClueRequestSchema = z
+  .object({
+    word: z.string().min(1),
+    count: z.number().int().min(1).max(9),
+  })
+  .strict();
+
+export const revealCodenamesCardRequestSchema = z
+  .object({
+    cardIndex: z.number().int().min(0).max(24),
   })
   .strict();
 
@@ -134,6 +208,24 @@ export type SubmitQuizAnswersRequest = z.infer<
 export type QuizAnswerResult = z.infer<typeof quizAnswerResultSchema>;
 export type SubmitQuizAnswersResponse = z.infer<
   typeof submitQuizAnswersResponseSchema
+>;
+export type CodenamesTeam = z.infer<typeof codenamesTeamSchema>;
+export type CodenamesCardRole = z.infer<typeof codenamesCardRoleSchema>;
+export type CodenamesCard = z.infer<typeof codenamesCardSchema>;
+export type CodenamesClue = z.infer<typeof codenamesClueSchema>;
+export type CodenamesSessionStatus = z.infer<
+  typeof codenamesSessionStatusSchema
+>;
+export type CodenamesSessionResponse = z.infer<typeof codenamesSessionSchema>;
+export type CodenamesKeyResponse = z.infer<typeof codenamesKeyResponseSchema>;
+export type CreateCodenamesSessionRequest = z.infer<
+  typeof createCodenamesSessionRequestSchema
+>;
+export type GiveCodenamesClueRequest = z.infer<
+  typeof giveCodenamesClueRequestSchema
+>;
+export type RevealCodenamesCardRequest = z.infer<
+  typeof revealCodenamesCardRequestSchema
 >;
 export type ForumPostResponse = z.infer<typeof forumPostSchema>;
 export type ForumPostsResponse = z.infer<typeof forumPostsResponseSchema>;

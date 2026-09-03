@@ -19,6 +19,11 @@ export class QuizQuestionEntity {
   @Column('text', { array: true })
   options!: string[];
 
+  // Secret content (see plan.md): used for server-side scoring and never
+  // included in API responses. The seed script already populates it.
+  @Column('int')
+  correctOptionIndex!: number;
+
   @CreateDateColumn({ type: 'timestamptz' })
   createdAt!: Date;
 

@@ -4,12 +4,14 @@ import {
   createRoute,
   createRouter,
   Outlet,
+  useNavigate,
   useParams,
+  useSearch,
 } from '@tanstack/react-router';
 import { TanStackRouterDevtools } from '@tanstack/react-router-devtools';
 import BaseView from './views/BaseView';
 import GameHub from './components/GameHub';
-import QuizDetail from './components/QuizDetail';
+import GameDetail from './components/GameDetail';
 import MessageThread from './components/MessageThread';
 import Profile from './components/Profile';
 
@@ -37,9 +39,28 @@ const indexRoute = createRoute({
 const gameRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: '/game/$id',
+  // Codenames keeps its session id in the URL so a refresh (or a link shared
+  // to the other team's device) lands back on the same board.
+  validateSearch: (search: Record<string, unknown>): { session?: string } =>
+    typeof search.session === 'string' ? { session: search.session } : {},
   component: function Game() {
     const params = useParams({ from: '/game/$id' });
-    return <QuizDetail id={params.id} />;
+    const search = useSearch({ strict: false });
+    const navigate = useNavigate();
+    return (
+      <GameDetail
+        id={params.id}
+        codenamesSessionId={search.session}
+        onCodenamesSessionIdChange={(sessionId) =>
+          void navigate({
+            to: '/game/$id',
+            params: { id: params.id },
+            search: { session: sessionId },
+            replace: true,
+          })
+        }
+      />
+    );
   },
 });
 

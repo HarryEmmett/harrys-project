@@ -1,10 +1,16 @@
 import { constants } from '@harrys-project/shared/constants';
-import { gameSchema } from '@harrys-project/shared/apiSchema';
+import {
+  codenamesSessionSchema,
+  gameSchema,
+} from '@harrys-project/shared/apiSchema';
 import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiUrl } from '../api/apiCalls';
-import { updateGameInCache } from '../api/gamesCache';
+import {
+  updateCodenamesSessionInCache,
+  updateGameInCache,
+} from '../api/gamesCache';
 
 // No rooms/join-leave here — with no per-question chat/reply feature (and no
 // create-game flow) there's nothing left needing per-id scoping, so this just
@@ -39,9 +45,23 @@ export const useGamesSocket = () => {
       }
     });
 
+    socket.on(
+      constants.ws.games.CODENAMES_SESSION_UPDATED_EVENT,
+      (wsData: unknown) => {
+        const data = codenamesSessionSchema.safeParse(wsData);
+
+        if (data.success) {
+          updateCodenamesSessionInCache(queryClient, data.data);
+        } else {
+          console.log('Invalid codenames session received:', data.error);
+        }
+      },
+    );
+
     return () => {
       socket.off(constants.ws.CONNECT_EVENT);
       socket.off(constants.ws.games.GAMES_UPDATED_EVENT);
+      socket.off(constants.ws.games.CODENAMES_SESSION_UPDATED_EVENT);
     };
   }, [queryClient, socket]);
 };
