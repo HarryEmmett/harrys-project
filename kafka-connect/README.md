@@ -131,26 +131,120 @@ curl -s http://localhost:8083/connector-plugins \
 | `./scripts/status.sh` | connector + task state, with the top of the stack trace on failure |
 | `docker compose logs -f connect` | the Connect worker log |
 
-The interesting one is `consume-topic.sh`. Open it in a second terminal, then insert or
-update a row in a third, and watch the envelope arrive:
+The interesting one is `consume-topic.sh`. Open it in a second terminal, insert
+or update a row in a third, and watch what arrives. The next section is what you
+will be looking at.
+
+## What happens to a row
+
+Nothing in this stack is custom code. Both connectors are prebuilt plugins, the
+JSON files are configuration, and all the reshaping is done by stock
+single-message transforms. Here is one row's journey, stage by stage.
+
+### 1. You insert a row
+
+```sql
+INSERT INTO events (event_type, user_id, message)
+VALUES ('game.finished', 'harry', 'hello');
+```
+
+### 2. Debezium publishes a change event
+
+The source connector does not send your row. It sends an *envelope describing the
+change*. Because the worker runs `JsonConverter` with schemas enabled, every
+message is `{"schema": ..., "payload": ...}`; the payload half looks like this:
 
 ```json
 {
   "before": null,
-  "after":  { "id": 3, "event_type": "game.finished", "user_id": "harry", ... },
-  "source": { "db": "demo", "table": "events", "lsn": 27723048, ... },
+  "after": {
+    "id": 3,
+    "event_type": "game.finished",
+    "user_id": "harry",
+    "message": "hello",
+    "created_at": "2026-09-03T18:02:11.123456Z"
+  },
+  "source": {
+    "db": "demo", "schema": "public", "table": "events",
+    "lsn": 27723048, "txId": 743, "ts_ms": 1756915331000
+  },
   "op": "c",
-  "ts_ms": 1756915200000
+  "ts_ms": 1756915331050
 }
 ```
 
-`op` is `c` create, `u` update, `d` delete, `r` read-during-snapshot. Try an
-`UPDATE` in `psql.sh` and you will see `before` populated too — that is what
-`REPLICA IDENTITY FULL` bought us in `postgres/init/01-events.sql`.
+The message **key** is separate, and is a struct: `{"id": 3}`. That matters in
+stage 3.
 
-A `DELETE` produces a delete event **and** a tombstone (a record with a null
-value). The sink is configured with `behavior.on.null.values: delete`, so the
-document disappears from Elasticsearch. That round trip is worth doing once.
+`op` is `c` create, `u` update, `d` delete, `r` read-during-snapshot. An `UPDATE`
+populates `before` as well as `after` — that is what `REPLICA IDENTITY FULL` in
+`postgres/init/01-events.sql` bought us. A `DELETE` produces an event with
+`after: null`, followed by a second message with a null value (a *tombstone*).
+
+### 3. Transforms reshape it before the sink sees it
+
+Configured in `connectors/elasticsearch-sink.json`, applied in order. This is
+config, not sink logic:
+
+| Transform | Effect |
+| --- | --- |
+| `unwrap` | Discards the envelope, keeps only `after`, and appends `__op` and `__source_ts_ms` so the provenance survives. |
+| `extractKey` | Pulls the bare `3` out of the key struct `{"id": 3}`. A struct cannot be a document id. |
+| `route` | Renames the topic `demo.public.events` to `events`. |
+
+After all three, the record is a flat row with a numeric key:
+
+```json
+{ "id": 3, "event_type": "game.finished", "user_id": "harry",
+  "message": "hello", "created_at": "2026-09-03T18:02:11.123456Z",
+  "__op": "c", "__source_ts_ms": 1756915331000 }
+```
+
+### 4. The sink task writes it
+
+The Elasticsearch sink's `put()` receives a batch of records and:
+
+- takes the **index name** from the topic — `events`, which is why the rename in
+  stage 3 matters;
+- takes the **document `_id`** from the record key, stringified: `"3"`. This is
+  the whole game. A stable id means an `UPDATE` to row 3 *overwrites* document 3
+  instead of adding a fourth document;
+- serialises the **value** as the document body. With `schema.ignore: true` it
+  does not build an explicit mapping first — Elasticsearch infers types
+  dynamically;
+- turns a **null value into a delete**, because of
+  `behavior.on.null.values: delete`. That is how a Postgres `DELETE` removes the
+  document;
+- **batches** records into one `_bulk` request (`batch.size`, `linger.ms`),
+  retries on failure, and commits its Kafka offset only once the bulk succeeded.
+  That gives at-least-once delivery: a crash mid-write replays rather than loses.
+
+### 5. What you get
+
+```bash
+curl -s localhost:9200/events/_doc/3?pretty
+```
+
+```json
+{ "id": 3, "event_type": "game.finished", "user_id": "harry",
+  "message": "hello", "created_at": "2026-09-03T18:02:11.123456Z",
+  "__op": "c", "__source_ts_ms": 1756915331000 }
+```
+
+Insert, update and delete that row in `psql.sh` and watch this document appear,
+change in place, and vanish.
+
+> **A detail worth knowing.** The source config sets
+> `time.precision.mode: connect`, but that setting only affects `TIMESTAMP`,
+> `DATE` and `TIME` columns. `created_at` is `TIMESTAMPTZ`, which Debezium always
+> maps to `ZonedTimestamp` — an ISO-8601 *string* — regardless. That happens to
+> be the better outcome here, since Elasticsearch's dynamic mapping recognises it
+> as a `date`. The setting would matter if you added a plain `TIMESTAMP` column,
+> which would otherwise arrive as raw microseconds since the epoch.
+
+The shapes above are from the connectors' documented behaviour, not from a
+captured run — see [A known unverified bit](#a-known-unverified-bit--read-this-if-the-first-run-fails).
+`./scripts/consume-topic.sh` shows you the real stage-2 message.
 
 ## The parts
 
@@ -196,22 +290,28 @@ exact payloads.
 
 ### The sink and its transforms
 
-`connectors/elasticsearch-sink.json` is where most of the learning is. The source
-writes the full Debezium envelope to the topic; the sink reshapes it with three
-single-message transforms, applied in order:
+Covered in detail in [What happens to a row](#what-happens-to-a-row) — the short
+version is that the three transforms named in `connectors/elasticsearch-sink.json`
+are stock classes (`ExtractNewRecordState` from Debezium, `ExtractField$Key` and
+`RegexRouter` from Kafka itself), not anything written here.
 
-1. **`unwrap`** (`ExtractNewRecordState`) — replaces the envelope with just the
-   `after` row, and appends `__op` and `__source_ts_ms` so you can still see what
-   kind of change it was. Deletes become tombstones.
-2. **`extractKey`** (`ExtractField$Key`) — the Debezium key is a struct
-   `{"id": 3}`; this pulls out the bare `3` so it becomes the Elasticsearch
-   document `_id`. That is what makes updates overwrite instead of duplicate.
-3. **`route`** (`RegexRouter`) — renames the topic `demo.public.events` to
-   `events`, so the index is called `events` rather than `demo.public.events`.
+The classes worth knowing by name:
 
-Try commenting out `extractKey` (delete it from `transforms` and re-run
-`./scripts/register-connectors.sh`) and watch updates start piling up as separate documents. SMTs
-are the cheapest way to learn what Connect is doing.
+| Alias | Class | Ships with |
+| --- | --- | --- |
+| `unwrap` | `io.debezium.transforms.ExtractNewRecordState` | Debezium |
+| `extractKey` | `org.apache.kafka.connect.transforms.ExtractField$Key` | Kafka |
+| `route` | `org.apache.kafka.connect.transforms.RegexRouter` | Kafka |
+
+Try deleting `extractKey` from the `transforms` list and re-running
+`./scripts/register-connectors.sh`, then update a row a few times: without a
+stable document id, every update lands as a *new* document instead of
+overwriting. SMTs are the cheapest way to learn what Connect is doing.
+
+Transforms are also where Connect's limits show. An SMT sees one record at a
+time, cannot do I/O, and cannot hold state across records. The moment you need
+"look this up in another table first", you want a stream processor, not a
+transform.
 
 ## Posting to the Connect REST API
 
